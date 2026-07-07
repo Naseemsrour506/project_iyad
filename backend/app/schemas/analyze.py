@@ -1,9 +1,21 @@
-from typing import Literal, Optional
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
-Category = Literal["Normal", "Insult", "Threat", "Harassment", "Bullying"]
-RiskLevel = Literal["Low", "Medium", "High"]
+Category = Literal[
+    "Normal",
+    "Insult",
+    "Threat",
+    "Harassment",
+    "Bullying"
+]
+
+RiskLevel = Literal[
+    "Low",
+    "Medium",
+    "High"
+]
 
 
 class AnalyzeRequest(BaseModel):
@@ -12,7 +24,7 @@ class AnalyzeRequest(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
-    message_id: Optional[int] = None
+    message_id: int
     child_id: int
     message: str
     category: Category

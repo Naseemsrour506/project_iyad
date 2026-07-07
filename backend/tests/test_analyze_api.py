@@ -30,7 +30,8 @@ def test_analyze_bullying_message():
     assert data["category"] == "Bullying"
     assert data["risk_level"] == "High"
     assert data["confidence"] == 0.88
-    assert data["message_id"] is None
+    assert isinstance(data["message_id"], int)
+    assert data["message_id"] > 0
 
 
 def test_analyze_normal_message():

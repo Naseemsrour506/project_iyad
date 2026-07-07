@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 
+from app import models
+from app.database import Base, engine
 from app.routers.analyze import router as analyze_router
+
+
+Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI(
