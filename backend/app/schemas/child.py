@@ -4,9 +4,17 @@ from pydantic import BaseModel, Field
 
 
 class ChildCreate(BaseModel):
-    parent_id: int = Field(..., ge=1)
-    full_name: str = Field(..., min_length=2, max_length=120)
-    age: int = Field(..., ge=1, le=18)
+    full_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=120
+    )
+
+    age: int = Field(
+        ...,
+        ge=1,
+        le=18
+    )
 
 
 class ChildResponse(BaseModel):

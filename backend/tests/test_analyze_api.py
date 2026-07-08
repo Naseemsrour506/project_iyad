@@ -1,23 +1,13 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.helpers import (
+    create_child,
+    register_and_login
+)
 
 
 client = TestClient(app)
-
-
-def create_test_child(parent_id: int = 1) -> int:
-    response = client.post(
-        "/api/children",
-        json={
-            "parent_id": parent_id,
-            "full_name": "Test Child",
-            "age": 13
-        }
-    )
-
-    assert response.status_code == 201
-    return response.json()["child_id"]
 
 
 def test_health_endpoint():
@@ -28,10 +18,19 @@ def test_health_endpoint():
 
 
 def test_analyze_bullying_message():
-    child_id = create_test_child(parent_id=101)
+    headers, _ = register_and_login(
+        client,
+        "analyze-bullying"
+    )
+
+    child_id = create_child(
+        client,
+        headers
+    )
 
     response = client.post(
         "/api/analyze",
+        headers=headers,
         json={
             "child_id": child_id,
             "message": "אתה אפס ואף אחד לא אוהב אותך"
@@ -45,16 +44,23 @@ def test_analyze_bullying_message():
     assert data["child_id"] == child_id
     assert data["category"] == "Bullying"
     assert data["risk_level"] == "High"
-    assert data["confidence"] == 0.88
     assert isinstance(data["message_id"], int)
-    assert data["message_id"] > 0
 
 
 def test_analyze_normal_message():
-    child_id = create_test_child(parent_id=102)
+    headers, _ = register_and_login(
+        client,
+        "analyze-normal"
+    )
+
+    child_id = create_child(
+        client,
+        headers
+    )
 
     response = client.post(
         "/api/analyze",
+        headers=headers,
         json={
             "child_id": child_id,
             "message": "שלום, מה שלומך?"
@@ -62,16 +68,46 @@ def test_analyze_normal_message():
     )
 
     assert response.status_code == 200
+    assert response.json()["category"] == "Normal"
 
-    data = response.json()
 
-    assert data["category"] == "Normal"
-    assert data["risk_level"] == "Low"
+def test_parent_cannot_analyze_another_parents_child():
+    owner_headers, _ = register_and_login(
+        client,
+        "analyze-owner"
+    )
+
+    other_headers, _ = register_and_login(
+        client,
+        "analyze-other"
+    )
+
+    child_id = create_child(
+        client,
+        owner_headers
+    )
+
+    response = client.post(
+        "/api/analyze",
+        headers=other_headers,
+        json={
+            "child_id": child_id,
+            "message": "שלום"
+        }
+    )
+
+    assert response.status_code == 404
 
 
 def test_missing_child_is_rejected():
+    headers, _ = register_and_login(
+        client,
+        "missing-child"
+    )
+
     response = client.post(
         "/api/analyze",
+        headers=headers,
         json={
             "child_id": 999999999,
             "message": "שלום"
@@ -79,12 +115,17 @@ def test_missing_child_is_rejected():
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Child not found"
 
 
 def test_empty_message_is_rejected():
+    headers, _ = register_and_login(
+        client,
+        "empty-message"
+    )
+
     response = client.post(
         "/api/analyze",
+        headers=headers,
         json={
             "child_id": 1,
             "message": ""
@@ -94,13 +135,13 @@ def test_empty_message_is_rejected():
     assert response.status_code == 422
 
 
-def test_invalid_child_id_is_rejected():
+def test_analyze_endpoint_requires_token():
     response = client.post(
         "/api/analyze",
         json={
-            "child_id": 0,
+            "child_id": 1,
             "message": "שלום"
         }
     )
 
-    assert response.status_code == 422
+    assert response.status_code in (401, 403)

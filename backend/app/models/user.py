@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 
@@ -41,4 +42,10 @@ class User(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
+    )
+
+    children = relationship(
+        "Child",
+        back_populates="parent",
+        cascade="all, delete-orphan"
     )

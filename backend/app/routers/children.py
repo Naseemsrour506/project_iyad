@@ -1,10 +1,15 @@
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status
+)
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.models.child import Child
+from app.models.user import User
 from app.schemas.child import ChildCreate, ChildResponse
 
 
@@ -31,10 +36,11 @@ def build_child_response(child: Child) -> ChildResponse:
 )
 def create_child(
     payload: ChildCreate,
+    current_user: User = Depends(get_current_user),
     database_session: Session = Depends(get_db)
 ):
     child_record = Child(
-        parent_id=payload.parent_id,
+        parent_id=current_user.id,
         full_name=payload.full_name.strip(),
         age=payload.age
     )
@@ -46,17 +52,21 @@ def create_child(
     return build_child_response(child_record)
 
 
-@router.get("", response_model=list[ChildResponse])
+@router.get(
+    "",
+    response_model=list[ChildResponse]
+)
 def get_children(
-    parent_id: Optional[int] = Query(default=None, ge=1),
+    current_user: User = Depends(get_current_user),
     database_session: Session = Depends(get_db)
 ):
-    query = database_session.query(Child)
-
-    if parent_id is not None:
-        query = query.filter(Child.parent_id == parent_id)
-
-    children = query.order_by(Child.created_at.desc()).all()
+    children = (
+        database_session
+        .query(Child)
+        .filter(Child.parent_id == current_user.id)
+        .order_by(Child.created_at.desc())
+        .all()
+    )
 
     return [
         build_child_response(child)
@@ -64,12 +74,24 @@ def get_children(
     ]
 
 
-@router.get("/{child_id}", response_model=ChildResponse)
+@router.get(
+    "/{child_id}",
+    response_model=ChildResponse
+)
 def get_child(
     child_id: int,
+    current_user: User = Depends(get_current_user),
     database_session: Session = Depends(get_db)
 ):
-    child = database_session.get(Child, child_id)
+    child = (
+        database_session
+        .query(Child)
+        .filter(
+            Child.id == child_id,
+            Child.parent_id == current_user.id
+        )
+        .first()
+    )
 
     if child is None:
         raise HTTPException(

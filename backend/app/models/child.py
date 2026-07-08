@@ -1,6 +1,13 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String
+)
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -24,6 +31,7 @@ class Child(Base):
 
     parent_id = Column(
         Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
@@ -42,6 +50,11 @@ class Child(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
+    )
+
+    parent = relationship(
+        "User",
+        back_populates="children"
     )
 
     messages = relationship(

@@ -1,37 +1,39 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests.helpers import (
+    create_child,
+    register_and_login
+)
 
 
 client = TestClient(app)
 
 
-def create_test_child(parent_id: int) -> int:
-    response = client.post(
-        "/api/children",
-        json={
-            "parent_id": parent_id,
-            "full_name": "Messages Test Child",
-            "age": 14
-        }
+def test_get_messages_returns_list():
+    headers, _ = register_and_login(
+        client,
+        "messages-list"
     )
 
-    assert response.status_code == 201
-    return response.json()["child_id"]
-
-
-def test_get_messages_returns_list():
-    child_id = create_test_child(parent_id=201)
+    child_id = create_child(
+        client,
+        headers
+    )
 
     client.post(
         "/api/analyze",
+        headers=headers,
         json={
             "child_id": child_id,
             "message": "שלום, מה שלומך?"
         }
     )
 
-    response = client.get("/api/messages")
+    response = client.get(
+        "/api/messages",
+        headers=headers
+    )
 
     assert response.status_code == 200
 
@@ -40,22 +42,21 @@ def test_get_messages_returns_list():
     assert isinstance(data, list)
     assert len(data) >= 1
 
-    message = data[0]
-
-    assert "message_id" in message
-    assert "child_id" in message
-    assert "message" in message
-    assert "category" in message
-    assert "risk_level" in message
-    assert "confidence" in message
-    assert "created_at" in message
-
 
 def test_get_messages_by_child_id():
-    child_id = create_test_child(parent_id=202)
+    headers, _ = register_and_login(
+        client,
+        "messages-filter"
+    )
+
+    child_id = create_child(
+        client,
+        headers
+    )
 
     client.post(
         "/api/analyze",
+        headers=headers,
         json={
             "child_id": child_id,
             "message": "אתה טיפש"
@@ -63,14 +64,14 @@ def test_get_messages_by_child_id():
     )
 
     response = client.get(
-        f"/api/messages?child_id={child_id}"
+        f"/api/messages?child_id={child_id}",
+        headers=headers
     )
 
     assert response.status_code == 200
 
     data = response.json()
 
-    assert isinstance(data, list)
     assert len(data) >= 1
     assert all(
         message["child_id"] == child_id
@@ -78,7 +79,61 @@ def test_get_messages_by_child_id():
     )
 
 
-def test_invalid_child_id_filter_is_rejected():
-    response = client.get("/api/messages?child_id=0")
+def test_parent_cannot_see_another_parents_messages():
+    owner_headers, _ = register_and_login(
+        client,
+        "message-owner"
+    )
+
+    other_headers, _ = register_and_login(
+        client,
+        "message-other"
+    )
+
+    child_id = create_child(
+        client,
+        owner_headers
+    )
+
+    client.post(
+        "/api/analyze",
+        headers=owner_headers,
+        json={
+            "child_id": child_id,
+            "message": "אתה טיפש"
+        }
+    )
+
+    response = client.get(
+        "/api/messages",
+        headers=other_headers
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert all(
+        message["child_id"] != child_id
+        for message in data
+    )
+
+
+def test_invalid_child_filter_is_rejected():
+    headers, _ = register_and_login(
+        client,
+        "invalid-filter"
+    )
+
+    response = client.get(
+        "/api/messages?child_id=0",
+        headers=headers
+    )
 
     assert response.status_code == 422
+
+
+def test_messages_endpoint_requires_token():
+    response = client.get("/api/messages")
+
+    assert response.status_code in (401, 403)

@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status
+)
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.models.child import Child
 from app.models.message import Message
 from app.models.prediction import Prediction
+from app.models.user import User
 from app.schemas.analyze import AnalyzeRequest, AnalyzeResponse
 from app.services.classifier import analyze_message
 
@@ -15,12 +22,24 @@ router = APIRouter(
 )
 
 
-@router.post("/analyze", response_model=AnalyzeResponse)
+@router.post(
+    "/analyze",
+    response_model=AnalyzeResponse
+)
 def analyze_single_message(
     payload: AnalyzeRequest,
+    current_user: User = Depends(get_current_user),
     database_session: Session = Depends(get_db)
 ):
-    child = database_session.get(Child, payload.child_id)
+    child = (
+        database_session
+        .query(Child)
+        .filter(
+            Child.id == payload.child_id,
+            Child.parent_id == current_user.id
+        )
+        .first()
+    )
 
     if child is None:
         raise HTTPException(
