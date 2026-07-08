@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app import models
 from app.database import Base, engine
 from app.routers.analyze import router as analyze_router
+from app.routers.auth import router as auth_router
 from app.routers.children import router as children_router
 from app.routers.messages import router as messages_router
 
@@ -12,11 +13,15 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SafeChat AI Backend",
-    description="Backend API for Hebrew cyberbullying detection system",
+    description=(
+        "Backend API for Hebrew "
+        "cyberbullying detection system"
+    ),
     version="1.0.0"
 )
 
 
+app.include_router(auth_router)
 app.include_router(children_router)
 app.include_router(analyze_router)
 app.include_router(messages_router)
