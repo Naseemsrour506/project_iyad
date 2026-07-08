@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app import models
 from app.database import Base, engine
 from app.routers.analyze import router as analyze_router
+from app.routers.children import router as children_router
 from app.routers.messages import router as messages_router
 
 
@@ -16,6 +17,7 @@ app = FastAPI(
 )
 
 
+app.include_router(children_router)
 app.include_router(analyze_router)
 app.include_router(messages_router)
 

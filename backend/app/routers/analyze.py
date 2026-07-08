@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.child import Child
 from app.models.message import Message
 from app.models.prediction import Prediction
 from app.schemas.analyze import AnalyzeRequest, AnalyzeResponse
@@ -19,10 +20,18 @@ def analyze_single_message(
     payload: AnalyzeRequest,
     database_session: Session = Depends(get_db)
 ):
+    child = database_session.get(Child, payload.child_id)
+
+    if child is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Child not found"
+        )
+
     analysis_result = analyze_message(payload.message)
 
     message_record = Message(
-        child_id=payload.child_id,
+        child_id=child.id,
         message_text=payload.message
     )
 

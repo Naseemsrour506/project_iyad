@@ -1,13 +1,20 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import CheckConstraint, Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.database import Base
 
 
-class Message(Base):
-    __tablename__ = "messages"
+class Child(Base):
+    __tablename__ = "children"
+
+    __table_args__ = (
+        CheckConstraint(
+            "age >= 1 AND age <= 18",
+            name="check_child_age"
+        ),
+    )
 
     id = Column(
         Integer,
@@ -15,15 +22,19 @@ class Message(Base):
         index=True
     )
 
-    child_id = Column(
+    parent_id = Column(
         Integer,
-        ForeignKey("children.id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
 
-    message_text = Column(
-        Text,
+    full_name = Column(
+        String(120),
+        nullable=False
+    )
+
+    age = Column(
+        Integer,
         nullable=False
     )
 
@@ -33,14 +44,8 @@ class Message(Base):
         nullable=False
     )
 
-    child = relationship(
-        "Child",
-        back_populates="messages"
-    )
-
-    prediction = relationship(
-        "Prediction",
-        back_populates="message",
-        uselist=False,
+    messages = relationship(
+        "Message",
+        back_populates="child",
         cascade="all, delete-orphan"
     )

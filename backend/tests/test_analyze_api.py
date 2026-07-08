@@ -6,6 +6,20 @@ from app.main import app
 client = TestClient(app)
 
 
+def create_test_child(parent_id: int = 1) -> int:
+    response = client.post(
+        "/api/children",
+        json={
+            "parent_id": parent_id,
+            "full_name": "Test Child",
+            "age": 13
+        }
+    )
+
+    assert response.status_code == 201
+    return response.json()["child_id"]
+
+
 def test_health_endpoint():
     response = client.get("/api/health")
 
@@ -14,10 +28,12 @@ def test_health_endpoint():
 
 
 def test_analyze_bullying_message():
+    child_id = create_test_child(parent_id=101)
+
     response = client.post(
         "/api/analyze",
         json={
-            "child_id": 1,
+            "child_id": child_id,
             "message": "אתה אפס ואף אחד לא אוהב אותך"
         }
     )
@@ -26,7 +42,7 @@ def test_analyze_bullying_message():
 
     data = response.json()
 
-    assert data["child_id"] == 1
+    assert data["child_id"] == child_id
     assert data["category"] == "Bullying"
     assert data["risk_level"] == "High"
     assert data["confidence"] == 0.88
@@ -35,10 +51,12 @@ def test_analyze_bullying_message():
 
 
 def test_analyze_normal_message():
+    child_id = create_test_child(parent_id=102)
+
     response = client.post(
         "/api/analyze",
         json={
-            "child_id": 2,
+            "child_id": child_id,
             "message": "שלום, מה שלומך?"
         }
     )
@@ -49,6 +67,19 @@ def test_analyze_normal_message():
 
     assert data["category"] == "Normal"
     assert data["risk_level"] == "Low"
+
+
+def test_missing_child_is_rejected():
+    response = client.post(
+        "/api/analyze",
+        json={
+            "child_id": 999999999,
+            "message": "שלום"
+        }
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Child not found"
 
 
 def test_empty_message_is_rejected():
