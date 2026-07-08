@@ -1,40 +1,27 @@
 # SafeChat AI - API Contract
 
-This document defines the communication between the Flutter client, FastAPI backend, database, and AI/NLP module.
+## 1. Purpose
 
-The goal of this file is to make the work between team members clear before writing the full code.
+This document defines the communication contract between:
 
----
+- Flutter client.
+- FastAPI backend.
+- Database layer.
+- AI/NLP module.
 
-# 1. General System Architecture
+The client must communicate only with the FastAPI backend.
 
-```text
-Flutter Client
-      |
-      | HTTP Requests
-      v
-FastAPI Backend
-      |
-      | Calls internal function
-      v
-AI / NLP Module
-      |
-      | Stores and reads data
-      v
-Database
-```
+The client must not access the database or AI module directly.
 
 ---
 
-# 2. Base URL
-
-During development:
+## 2. Development Base URL
 
 ```text
-http://localhost:8000
+http://127.0.0.1:8000
 ```
 
-All API routes will start with:
+All application API endpoints begin with:
 
 ```text
 /api
@@ -43,32 +30,106 @@ All API routes will start with:
 Example:
 
 ```text
-POST http://localhost:8000/api/analyze
+POST http://127.0.0.1:8000/api/analyze
 ```
 
 ---
 
-# 3. User Roles
+## 3. Data Format
 
-The system supports the following roles:
+Requests and responses use JSON unless otherwise specified.
 
-```text
-Parent
-Admin
-Child
+Request header:
+
+```http
+Content-Type: application/json
 ```
 
-For the MVP version, the most important role is:
+Protected endpoints require:
 
-```text
-Parent
+```http
+Authorization: Bearer ACCESS_TOKEN
 ```
 
 ---
 
-# 4. Authentication APIs
+## 4. Authentication Overview
 
-## 4.1 Register User
+Authentication uses JWT Bearer tokens.
+
+Flow:
+
+```text
+Register
+   ↓
+Login
+   ↓
+Receive access_token
+   ↓
+Send token with protected requests
+```
+
+Example authentication header:
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+The client must not store the user's password.
+
+The client stores the access token securely and sends it only to the backend.
+
+---
+
+# 5. System Endpoints
+
+## 5.1 Root Status
+
+### Endpoint
+
+```http
+GET /
+```
+
+### Authentication
+
+Not required.
+
+### Response
+
+```json
+{
+  "message": "SafeChat AI Backend is running"
+}
+```
+
+---
+
+## 5.2 Health Check
+
+### Endpoint
+
+```http
+GET /api/health
+```
+
+### Authentication
+
+Not required.
+
+### Response
+
+```json
+{
+  "status": "ok"
+}
+```
+
+---
+
+# 6. Authentication Endpoints
+
+## 6.1 Register User
 
 ### Endpoint
 
@@ -76,36 +137,72 @@ Parent
 POST /api/auth/register
 ```
 
+### Authentication
+
+Not required.
+
 ### Description
 
-Create a new user account.
+Register a new parent account.
 
 ### Request Body
 
 ```json
 {
-  "full_name": "Parent Name",
-  "email": "parent@example.com",
-  "password": "123456",
-  "role": "Parent"
+  "full_name": "Amjad Parent",
+  "email": "amjad.parent@example.com",
+  "password": "StrongPassword123"
 }
 ```
 
-### Response
+### Validation Rules
+
+- `full_name` must contain between 2 and 120 characters.
+- `email` must be a valid email address.
+- `password` must contain between 8 and 128 characters.
+- The email must not already exist.
+
+### Successful Response
+
+Status:
+
+```text
+201 Created
+```
+
+Body:
 
 ```json
 {
   "user_id": 1,
-  "full_name": "Parent Name",
-  "email": "parent@example.com",
+  "full_name": "Amjad Parent",
+  "email": "amjad.parent@example.com",
   "role": "Parent",
-  "message": "User registered successfully"
+  "created_at": "2026-07-08T14:24:15.108454"
+}
+```
+
+The password and password hash are never returned.
+
+### Duplicate Email Response
+
+Status:
+
+```text
+409 Conflict
+```
+
+Body:
+
+```json
+{
+  "detail": "Email is already registered"
 }
 ```
 
 ---
 
-## 4.2 Login User
+## 6.2 Login User
 
 ### Endpoint
 
@@ -113,39 +210,118 @@ Create a new user account.
 POST /api/auth/login
 ```
 
+### Authentication
+
+Not required.
+
 ### Description
 
-Login user and return an authentication token.
+Authenticate a user and return a JWT access token.
 
 ### Request Body
 
 ```json
 {
-  "email": "parent@example.com",
-  "password": "123456"
+  "email": "amjad.parent@example.com",
+  "password": "StrongPassword123"
 }
 ```
 
-### Response
+### Successful Response
+
+Status:
+
+```text
+200 OK
+```
+
+Body:
 
 ```json
 {
-  "access_token": "jwt_token_here",
+  "access_token": "JWT_ACCESS_TOKEN",
   "token_type": "bearer",
   "user": {
     "user_id": 1,
-    "full_name": "Parent Name",
-    "email": "parent@example.com",
-    "role": "Parent"
+    "full_name": "Amjad Parent",
+    "email": "amjad.parent@example.com",
+    "role": "Parent",
+    "created_at": "2026-07-08T14:24:15.108454"
   }
+}
+```
+
+### Incorrect Login Response
+
+Status:
+
+```text
+401 Unauthorized
+```
+
+Body:
+
+```json
+{
+  "detail": "Incorrect email or password"
 }
 ```
 
 ---
 
-# 5. Children APIs
+## 6.3 Get Current User
 
-## 5.1 Add Child Profile
+### Endpoint
+
+```http
+GET /api/auth/me
+```
+
+### Authentication
+
+Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
+### Description
+
+Return the currently authenticated user.
+
+### Successful Response
+
+```json
+{
+  "user_id": 1,
+  "full_name": "Amjad Parent",
+  "email": "amjad.parent@example.com",
+  "role": "Parent",
+  "created_at": "2026-07-08T14:24:15.108454"
+}
+```
+
+### Invalid or Expired Token Response
+
+Status:
+
+```text
+401 Unauthorized
+```
+
+Body:
+
+```json
+{
+  "detail": "Invalid or expired authentication token"
+}
+```
+
+---
+
+# 7. Children Endpoints
+
+## 7.1 Create Child Profile
 
 ### Endpoint
 
@@ -153,34 +329,61 @@ Login user and return an authentication token.
 POST /api/children
 ```
 
+### Authentication
+
+Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
 ### Description
 
-Add a child profile under the logged-in parent.
+Create a child profile under the currently logged-in parent.
+
+The client must not send `parent_id`.
+
+The backend extracts the parent ID from the JWT token.
 
 ### Request Body
 
 ```json
 {
-  "full_name": "Child Name",
+  "full_name": "Ahmad",
   "age": 13
 }
 ```
 
-### Response
+### Validation Rules
+
+- `full_name` must contain between 2 and 120 characters.
+- `age` must be between 1 and 18.
+
+### Successful Response
+
+Status:
+
+```text
+201 Created
+```
+
+Body:
 
 ```json
 {
   "child_id": 1,
   "parent_id": 1,
-  "full_name": "Child Name",
+  "full_name": "Ahmad",
   "age": 13,
-  "message": "Child profile created successfully"
+  "created_at": "2026-07-08T14:30:00"
 }
 ```
 
+The `parent_id` is taken automatically from the authenticated user.
+
 ---
 
-## 5.2 Get Children
+## 7.2 Get Current Parent's Children
 
 ### Endpoint
 
@@ -188,32 +391,94 @@ Add a child profile under the logged-in parent.
 GET /api/children
 ```
 
+### Authentication
+
+Required.
+
 ### Description
 
-Return all children profiles for the logged-in parent.
+Return only children belonging to the currently logged-in parent.
 
-### Response
+### Successful Response
 
 ```json
 [
   {
     "child_id": 1,
-    "full_name": "Child Name",
-    "age": 13
+    "parent_id": 1,
+    "full_name": "Ahmad",
+    "age": 13,
+    "created_at": "2026-07-08T14:30:00"
   },
   {
     "child_id": 2,
-    "full_name": "Second Child",
-    "age": 15
+    "parent_id": 1,
+    "full_name": "Maya",
+    "age": 15,
+    "created_at": "2026-07-08T14:35:00"
   }
 ]
 ```
 
 ---
 
-# 6. Message Analysis APIs
+## 7.3 Get One Child
 
-## 6.1 Analyze Single Message
+### Endpoint
+
+```http
+GET /api/children/{child_id}
+```
+
+### Example
+
+```http
+GET /api/children/1
+```
+
+### Authentication
+
+Required.
+
+### Description
+
+Return one child only when that child belongs to the logged-in parent.
+
+### Successful Response
+
+```json
+{
+  "child_id": 1,
+  "parent_id": 1,
+  "full_name": "Ahmad",
+  "age": 13,
+  "created_at": "2026-07-08T14:30:00"
+}
+```
+
+### Child Not Found or Not Owned by User
+
+Status:
+
+```text
+404 Not Found
+```
+
+Body:
+
+```json
+{
+  "detail": "Child not found"
+}
+```
+
+The backend intentionally returns the same result for a missing child and another parent's child.
+
+---
+
+# 8. Message Analysis Endpoint
+
+## 8.1 Analyze Message
 
 ### Endpoint
 
@@ -221,99 +486,73 @@ Return all children profiles for the logged-in parent.
 POST /api/analyze
 ```
 
+### Authentication
+
+Required.
+
 ### Description
 
-Analyze a single message and return the cyberbullying classification result.
+Analyze a message for a child owned by the logged-in parent.
+
+The endpoint:
+
+1. Validates the request.
+2. Verifies that the child belongs to the current parent.
+3. Sends the message to the classifier.
+4. Stores the original message.
+5. Stores the prediction.
+6. Returns the analysis result.
 
 ### Request Body
 
 ```json
 {
   "child_id": 1,
-  "message": "אתה אפס ואף אחד לא אוהב אותך"
+  "message": "אף אחד לא אוהב אותך"
 }
 ```
 
-### Response
+### Validation Rules
+
+- `child_id` must be an integer greater than or equal to 1.
+- `message` must not be empty.
+- The child must belong to the logged-in parent.
+
+### Successful Response
 
 ```json
 {
-  "message_id": 15,
+  "message_id": 1,
   "child_id": 1,
-  "message": "אתה אפס ואף אחד לא אוהב אותך",
+  "message": "אף אחד לא אוהב אותך",
   "category": "Bullying",
   "risk_level": "High",
-  "confidence": 0.87,
-  "explanation": "The message contains insulting and humiliating language.",
-  "created_at": "2026-07-01T12:00:00"
+  "confidence": 0.88,
+  "explanation": "The message contains humiliating or socially harmful language."
 }
 ```
 
----
+### Child Not Found or Not Owned by User
 
-## 6.2 Analyze Multiple Messages
+Status:
 
-### Endpoint
-
-```http
-POST /api/analyze/batch
+```text
+404 Not Found
 ```
 
-### Description
-
-Analyze multiple messages in one request.
-
-This can be used later for CSV upload or bulk analysis.
-
-### Request Body
+Body:
 
 ```json
 {
-  "child_id": 1,
-  "messages": [
-    "אתה אפס",
-    "מה קורה?",
-    "אף אחד לא אוהב אותך"
-  ]
+  "detail": "Child not found"
 }
-```
-
-### Response
-
-```json
-[
-  {
-    "message_id": 15,
-    "message": "אתה אפס",
-    "category": "Insult",
-    "risk_level": "High",
-    "confidence": 0.91,
-    "explanation": "The message contains offensive language."
-  },
-  {
-    "message_id": 16,
-    "message": "מה קורה?",
-    "category": "Normal",
-    "risk_level": "Low",
-    "confidence": 0.98,
-    "explanation": "No harmful content was detected."
-  },
-  {
-    "message_id": 17,
-    "message": "אף אחד לא אוהב אותך",
-    "category": "Bullying",
-    "risk_level": "High",
-    "confidence": 0.88,
-    "explanation": "The message contains humiliating language."
-  }
-]
 ```
 
 ---
 
-# 7. Messages APIs
+# 9. Message History Endpoints
 
-## 7.1 Get All Messages
+## 9.1 Get Current Parent's Messages
 
 ### Endpoint
 
@@ -321,253 +560,77 @@ This can be used later for CSV upload or bulk analysis.
 GET /api/messages
 ```
 
+### Authentication
+
+Required.
+
 ### Description
 
-Return all analyzed messages for the logged-in parent.
+Return analyzed messages belonging only to children owned by the current parent.
 
-### Response
+### Successful Response
 
 ```json
 [
   {
-    "message_id": 15,
+    "message_id": 1,
     "child_id": 1,
-    "message": "אתה אפס ואף אחד לא אוהב אותך",
+    "message": "אף אחד לא אוהב אותך",
     "category": "Bullying",
     "risk_level": "High",
-    "confidence": 0.87,
-    "created_at": "2026-07-01T12:00:00"
-  },
-  {
-    "message_id": 16,
-    "child_id": 1,
-    "message": "מה קורה?",
-    "category": "Normal",
-    "risk_level": "Low",
-    "confidence": 0.98,
-    "created_at": "2026-07-01T12:05:00"
+    "confidence": 0.88,
+    "explanation": "The message contains humiliating or socially harmful language.",
+    "created_at": "2026-07-08T14:40:00"
   }
 ]
 ```
 
 ---
 
-## 7.2 Get Messages By Child
+## 9.2 Filter Messages by Child
 
 ### Endpoint
 
 ```http
-GET /api/messages/child/{child_id}
+GET /api/messages?child_id={child_id}
 ```
 
 ### Example
 
 ```http
-GET /api/messages/child/1
+GET /api/messages?child_id=1
 ```
+
+### Authentication
+
+Required.
 
 ### Description
 
-Return all analyzed messages for a specific child.
+Return messages for a specific child only when that child belongs to the current parent.
 
-### Response
+### Successful Response
 
 ```json
 [
   {
-    "message_id": 15,
+    "message_id": 1,
     "child_id": 1,
-    "message": "אתה אפס ואף אחד לא אוהב אותך",
+    "message": "אף אחד לא אוהב אותך",
     "category": "Bullying",
     "risk_level": "High",
-    "confidence": 0.87,
-    "created_at": "2026-07-01T12:00:00"
+    "confidence": 0.88,
+    "explanation": "The message contains humiliating or socially harmful language.",
+    "created_at": "2026-07-08T14:40:00"
   }
 ]
 ```
 
 ---
 
-# 8. Alerts APIs
+# 10. Message Categories
 
-## 8.1 Get Alerts
-
-### Endpoint
-
-```http
-GET /api/alerts
-```
-
-### Description
-
-Return all alerts for dangerous messages.
-
-### Response
-
-```json
-[
-  {
-    "alert_id": 4,
-    "message_id": 15,
-    "child_id": 1,
-    "alert_type": "High Risk Message",
-    "status": "Open",
-    "created_at": "2026-07-01T12:00:00"
-  }
-]
-```
-
----
-
-## 8.2 Update Alert Status
-
-### Endpoint
-
-```http
-PUT /api/alerts/{alert_id}
-```
-
-### Example
-
-```http
-PUT /api/alerts/4
-```
-
-### Description
-
-Update alert status.
-
-### Request Body
-
-```json
-{
-  "status": "Closed"
-}
-```
-
-### Response
-
-```json
-{
-  "alert_id": 4,
-  "status": "Closed",
-  "message": "Alert updated successfully"
-}
-```
-
----
-
-# 9. Dashboard APIs
-
-## 9.1 Get Dashboard Statistics
-
-### Endpoint
-
-```http
-GET /api/dashboard/stats
-```
-
-### Description
-
-Return statistics for the parent dashboard.
-
-### Response
-
-```json
-{
-  "total_messages": 120,
-  "normal_messages": 95,
-  "dangerous_messages": 25,
-  "high_risk_messages": 7,
-  "medium_risk_messages": 12,
-  "low_risk_messages": 6
-}
-```
-
----
-
-## 9.2 Get Category Statistics
-
-### Endpoint
-
-```http
-GET /api/dashboard/categories
-```
-
-### Description
-
-Return number of messages per category.
-
-### Response
-
-```json
-{
-  "Normal": 95,
-  "Insult": 10,
-  "Threat": 3,
-  "Harassment": 5,
-  "Bullying": 7
-}
-```
-
----
-
-## 9.3 Get Risk Level Statistics
-
-### Endpoint
-
-```http
-GET /api/dashboard/risk-levels
-```
-
-### Description
-
-Return number of messages per risk level.
-
-### Response
-
-```json
-{
-  "Low": 95,
-  "Medium": 18,
-  "High": 7
-}
-```
-
----
-
-# 10. AI / NLP Function Contract
-
-The backend will call an internal AI function.
-
-## Function Name
-
-```python
-analyze_message(text)
-```
-
-## Input
-
-```python
-"אתה אפס ואף אחד לא אוהב אותך"
-```
-
-## Output
-
-```python
-{
-    "category": "Bullying",
-    "risk_level": "High",
-    "confidence": 0.87,
-    "explanation": "The message contains insulting and humiliating language."
-}
-```
-
----
-
-# 11. Categories
-
-The AI/NLP module should return one of these categories:
+The classifier returns one of the following categories:
 
 ```text
 Normal
@@ -577,21 +640,30 @@ Harassment
 Bullying
 ```
 
-## Category Explanation
+Descriptions:
 
 ```text
-Normal      - Safe message without harmful content
-Insult      - Offensive words or direct insult
-Threat      - Message that includes danger or threat
-Harassment  - Repeated annoying or harmful behavior
-Bullying    - Humiliation, social exclusion, or emotional harm
+Normal
+Safe message without detected harmful content.
+
+Insult
+A message containing offensive or insulting language.
+
+Threat
+A message containing threatening or dangerous language.
+
+Harassment
+A message indicating repeated unwanted or harmful behavior.
+
+Bullying
+A message containing humiliation, social exclusion, or emotional harm.
 ```
 
 ---
 
-# 12. Risk Levels
+# 11. Risk Levels
 
-The system should return one of these risk levels:
+The classifier returns one of the following risk levels:
 
 ```text
 Low
@@ -599,19 +671,64 @@ Medium
 High
 ```
 
-## Risk Level Explanation
+Descriptions:
 
 ```text
-Low     - Safe or very low risk message
-Medium  - Suspicious or harmful message
-High    - Dangerous, threatening, or clearly bullying message
+Low
+No harmful content or very low risk.
+
+Medium
+Suspicious, insulting, or potentially harmful content.
+
+High
+Clearly threatening, dangerous, humiliating, or bullying content.
 ```
 
 ---
 
-# 13. Database Tables - Initial Plan
+# 12. AI/NLP Function Contract
 
-## users
+The backend calls an internal function:
+
+```python
+analyze_message(text: str) -> dict
+```
+
+### Input
+
+```python
+"אף אחד לא אוהב אותך"
+```
+
+### Output
+
+```python
+{
+    "category": "Bullying",
+    "risk_level": "High",
+    "confidence": 0.88,
+    "explanation": "The message contains humiliating or socially harmful language."
+}
+```
+
+Required output fields:
+
+```text
+category
+risk_level
+confidence
+explanation
+```
+
+The current implementation is rule-based.
+
+The final AI/NLP model must preserve the same output structure so that the FastAPI backend does not require major changes.
+
+---
+
+# 13. Current Database Contract
+
+## 13.1 Users
 
 ```text
 id
@@ -622,7 +739,7 @@ role
 created_at
 ```
 
-## children
+## 13.2 Children
 
 ```text
 id
@@ -632,20 +749,28 @@ age
 created_at
 ```
 
-## messages
+`parent_id` references:
+
+```text
+users.id
+```
+
+## 13.3 Messages
 
 ```text
 id
 child_id
-sender_name
-receiver_name
 message_text
-source
 created_at
-uploaded_by
 ```
 
-## predictions
+`child_id` references:
+
+```text
+children.id
+```
+
+## 13.4 Predictions
 
 ```text
 id
@@ -657,74 +782,188 @@ explanation
 created_at
 ```
 
-## alerts
+`message_id` references:
 
 ```text
-id
-child_id
-message_id
-alert_type
-status
-created_at
-```
-
-## audit_logs
-
-```text
-id
-user_id
-action
-details
-created_at
+messages.id
 ```
 
 ---
 
-# 14. Error Response Format
+# 14. Authorization Rules
 
-All errors should follow this format:
+The backend currently enforces these rules:
 
-```json
-{
-  "error": true,
-  "message": "Error description here"
-}
+- Protected endpoints require a valid JWT token.
+- A user can create children only under their own account.
+- A user can retrieve only their own children.
+- A user cannot retrieve another user's child.
+- A user can analyze messages only for their own children.
+- A user can retrieve only messages belonging to their own children.
+- Password hashes are never returned.
+- Access tokens must not be committed to Git.
+- Secret keys must remain in the local `.env` file.
+
+---
+
+# 15. Validation and Error Responses
+
+## 15.1 Validation Error
+
+Status:
+
+```text
+422 Unprocessable Entity
 ```
 
-## Example
+Example causes:
+
+- Invalid email.
+- Password shorter than 8 characters.
+- Empty message.
+- Invalid child ID.
+- Child age outside the allowed range.
+- Missing required field.
+
+FastAPI returns a detailed validation response.
+
+---
+
+## 15.2 Unauthorized Request
+
+Status:
+
+```text
+401 Unauthorized
+```
+
+or, depending on the authentication layer:
+
+```text
+403 Forbidden
+```
+
+Example causes:
+
+- Missing token.
+- Invalid token.
+- Expired token.
+
+---
+
+## 15.3 Not Found
+
+Status:
+
+```text
+404 Not Found
+```
+
+Example:
 
 ```json
 {
-  "error": true,
-  "message": "Child profile not found"
+  "detail": "Child not found"
 }
 ```
 
 ---
 
-# 15. MVP API List
+## 15.4 Duplicate Resource
 
-For the first working version, we need these APIs:
+Status:
 
 ```text
-POST /api/auth/register
-POST /api/auth/login
-POST /api/children
-GET  /api/children
-POST /api/analyze
-GET  /api/messages
-GET  /api/alerts
+409 Conflict
+```
+
+Example:
+
+```json
+{
+  "detail": "Email is already registered"
+}
+```
+
+---
+
+# 16. Current Automated Test Status
+
+The backend currently has automated tests for:
+
+- Classifier behavior.
+- Authentication.
+- JWT.
+- Child management.
+- Child ownership.
+- Message analysis.
+- Message history.
+- Authorization.
+- Request validation.
+- Protected endpoints.
+
+Current result:
+
+```text
+29 passed
+```
+
+Tests are executed with:
+
+```bash
+python -m pytest -q
+```
+
+---
+
+# 17. Currently Implemented Endpoint Summary
+
+| Method | Endpoint | Authentication | Status |
+|---|---|---|---|
+| GET | `/` | No | Implemented |
+| GET | `/api/health` | No | Implemented |
+| POST | `/api/auth/register` | No | Implemented |
+| POST | `/api/auth/login` | No | Implemented |
+| GET | `/api/auth/me` | Yes | Implemented |
+| POST | `/api/children` | Yes | Implemented |
+| GET | `/api/children` | Yes | Implemented |
+| GET | `/api/children/{child_id}` | Yes | Implemented |
+| POST | `/api/analyze` | Yes | Implemented |
+| GET | `/api/messages` | Yes | Implemented |
+| GET | `/api/messages?child_id={id}` | Yes | Implemented |
+
+---
+
+# 18. Planned Endpoints
+
+The following endpoints are planned but not yet implemented:
+
+```text
 GET  /api/dashboard/stats
+GET  /api/dashboard/categories
+GET  /api/dashboard/risk-levels
+GET  /api/alerts
+PUT  /api/alerts/{alert_id}
+POST /api/analyze/batch
+POST /api/messages/upload
 ```
+
+These endpoints must not be treated as available until their implementation and tests are completed.
 
 ---
 
-# 16. Notes For Team Members
+# 19. Flutter Integration Notes
 
-- The Flutter client should only communicate with the FastAPI backend.
-- The Flutter client should not call the AI/NLP module directly.
-- The backend is responsible for calling the AI/NLP module.
-- The backend is responsible for saving messages, predictions, and alerts in the database.
-- The AI/NLP module receives text and returns category, risk level, confidence, and explanation.
-- All API responses should be simple and clear so the frontend can display them easily.
+The Flutter client should:
+
+1. Register or log in the user.
+2. Save the returned JWT access token securely.
+3. Add the token to every protected request.
+4. Call `GET /api/auth/me` to restore the user session.
+5. Call `POST /api/children` without sending `parent_id`.
+6. Use the returned `child_id` for message analysis.
+7. Call `POST /api/analyze` to analyze a message.
+8. Call `GET /api/messages` to show message history.
+9. Handle 401 responses by requiring login again.
+10. Never communicate directly with the database or AI module.
 
