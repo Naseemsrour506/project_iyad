@@ -8,9 +8,9 @@
 
 SafeChat AI is a smart system for detecting cyberbullying and harmful messages in Hebrew.
 
-The system allows a parent to register, log in, create child profiles, submit messages for analysis, and view the message classification and risk level.
+The system allows a parent to register, log in, create child profiles, submit messages for analysis, view the message classification and risk level, view dashboard statistics, and receive alerts for high-risk messages.
 
-The backend analyzes each message, stores the original message and its analysis result in a database, and returns a structured response to the client application.
+The backend analyzes each message, stores the original message and its analysis result in a database, creates alerts when needed, and returns structured responses to the client application.
 
 The current classifier is a temporary rule-based implementation. It will later be replaced by a real AI/NLP model while keeping the same interface between the AI module and the backend.
 
@@ -29,8 +29,9 @@ SafeChat AI aims to provide an early-warning system that:
 - Classifies the type of harmful behavior.
 - Calculates a risk level.
 - Stores message history.
-- Allows each parent to access only their own children and messages.
-- Provides a foundation for alerts, reports, and dashboard statistics.
+- Creates alerts for high-risk messages.
+- Allows each parent to access only their own children, messages, alerts, and statistics.
+- Provides a foundation for reports, notifications, and dashboard statistics.
 
 ---
 
@@ -78,6 +79,8 @@ FastAPI Backend
       ├── Child profile management
       ├── Message analysis
       ├── Message history
+      ├── Dashboard statistics
+      ├── Alerts management
       ├── Request validation
       └── Database operations
       |
@@ -91,7 +94,8 @@ SQLite Database
       ├── Users
       ├── Children
       ├── Messages
-      └── Predictions
+      ├── Predictions
+      └── Alerts
 ```
 
 ---
@@ -114,7 +118,8 @@ Responsibilities:
 - Message submission form.
 - Display analysis results.
 - Display message history.
-- Display alerts and statistics in future versions.
+- Display alerts.
+- Display dashboard statistics.
 - Store and send the JWT access token.
 - Communicate only with the FastAPI backend.
 
@@ -141,7 +146,11 @@ Responsibilities:
 - Receive messages from the client.
 - Call the message classifier.
 - Save messages and predictions.
+- Create alerts for high-risk messages.
 - Return message history.
+- Return dashboard statistics.
+- Return alerts and unread alert counts.
+- Mark alerts as read.
 - Prevent users from accessing another user's data.
 
 ### 7.3 AI/NLP Module
@@ -181,10 +190,10 @@ Current tables:
 - Children.
 - Messages.
 - Predictions.
+- Alerts.
 
 Future tables may include:
 
-- Alerts.
 - Audit logs.
 - Reports.
 - Refresh tokens.
@@ -217,13 +226,23 @@ The following backend features have already been implemented:
 - Message history endpoint.
 - Filtering message history by child.
 - Prevention of access to another parent's messages.
+- Dashboard statistics API.
+- Total children count.
+- Total analyzed messages count.
+- Message statistics by risk level.
+- Message statistics by category.
+- Automatic alert creation for high-risk messages.
+- Alerts API.
+- Unread alerts count.
+- Mark alert as read.
+- Parent can view only alerts that belong to their own children.
 - Request and response validation using Pydantic.
 - Automated unit and API tests.
 
 Current automated test result:
 
 ```text
-29 passed
+38 passed
 ```
 
 ---
@@ -300,6 +319,31 @@ One Message
     └── One Prediction
 ```
 
+### 9.5 Alerts Table
+
+```text
+alerts
+├── id
+├── child_id
+├── message_id
+├── prediction_id
+├── title
+├── category
+├── risk_level
+├── is_read
+└── created_at
+```
+
+Relationship:
+
+```text
+One Child
+    |
+    └── Many Alerts
+```
+
+An alert is created automatically when a message receives a `High` risk level.
+
 ---
 
 ## 10. Current Authentication Flow
@@ -344,6 +388,9 @@ The following authorization rules are implemented:
 - A parent can analyze messages only for their own children.
 - A parent can retrieve only messages belonging to their own children.
 - A parent cannot view another parent's message history.
+- A parent can view only dashboard statistics that belong to their own children and messages.
+- A parent can view only alerts that belong to their own children.
+- A parent cannot mark another parent's alert as read.
 - Protected endpoints require a valid JWT token.
 - Password hashes are never returned by the API.
 - The real password is never stored directly in the database.
@@ -365,6 +412,11 @@ The following authorization rules are implemented:
 | POST | `/api/analyze` | Yes | Analyze and save a message |
 | GET | `/api/messages` | Yes | Return the current parent's message history |
 | GET | `/api/messages?child_id={id}` | Yes | Filter messages by child |
+| GET | `/api/dashboard/stats` | Yes | Return dashboard statistics for the current parent |
+| GET | `/api/alerts` | Yes | Return the current parent's alerts |
+| GET | `/api/alerts?unread_only=true` | Yes | Return only unread alerts |
+| GET | `/api/alerts/unread-count` | Yes | Return the number of unread alerts |
+| PATCH | `/api/alerts/{alert_id}/read` | Yes | Mark an alert as read |
 
 ---
 
@@ -390,6 +442,10 @@ Classifier returns category, risk, confidence, and explanation
 Backend saves the original message
       ↓
 Backend saves the prediction
+      ↓
+If the prediction risk level is High
+      ↓
+Backend creates an alert
       ↓
 Backend returns a JSON response
 ```
@@ -417,9 +473,83 @@ Example response:
 }
 ```
 
+When the returned `risk_level` is `High`, the backend creates an alert automatically.
+
 ---
 
-## 14. AI/NLP Integration Status
+## 14. Current Dashboard Flow
+
+```text
+Parent logs in
+      ↓
+Parent receives JWT token
+      ↓
+Parent requests dashboard statistics
+      ↓
+Backend filters data by the current parent
+      ↓
+Backend counts children and messages
+      ↓
+Backend groups predictions by risk level and category
+      ↓
+Backend returns statistics
+```
+
+Example response:
+
+```json
+{
+  "total_children": 1,
+  "total_messages": 2,
+  "risk_levels": {
+    "Low": 1,
+    "Medium": 0,
+    "High": 1
+  },
+  "categories": {
+    "Normal": 1,
+    "Insult": 0,
+    "Threat": 0,
+    "Harassment": 0,
+    "Bullying": 1
+  }
+}
+```
+
+---
+
+## 15. Current Alerts Flow
+
+```text
+High-risk message is analyzed
+      ↓
+Backend creates an alert
+      ↓
+Parent requests alerts
+      ↓
+Backend returns only alerts that belong to the parent's children
+      ↓
+Parent can mark an alert as read
+```
+
+Example alert response:
+
+```json
+{
+  "alert_id": 1,
+  "child_id": 1,
+  "message_id": 1,
+  "title": "High risk message detected",
+  "category": "Bullying",
+  "risk_level": "High",
+  "is_read": false,
+  "created_at": "2026-07-08T14:50:00"
+}
+```
+
+---
+
+## 16. AI/NLP Integration Status
 
 The current backend uses a temporary rule-based Hebrew classifier.
 
@@ -466,7 +596,7 @@ The FastAPI endpoint should not need major changes when the final AI model is co
 
 ---
 
-## 15. Current Testing Strategy
+## 17. Current Testing Strategy
 
 The backend includes automated tests for:
 
@@ -491,6 +621,13 @@ The backend includes automated tests for:
 - Message persistence.
 - Message history.
 - Message filtering.
+- Dashboard statistics.
+- Dashboard ownership and authorization.
+- Alert creation for high-risk messages.
+- Alert retrieval.
+- Unread alerts count.
+- Mark alert as read.
+- Alert ownership and authorization.
 - Protected endpoint behavior.
 
 Tests are executed with:
@@ -502,12 +639,12 @@ python -m pytest -q
 Current result:
 
 ```text
-29 passed
+38 passed
 ```
 
 ---
 
-## 16. MVP Features
+## 18. MVP Features
 
 The minimum working product should include:
 
@@ -522,21 +659,19 @@ The minimum working product should include:
 9. Message and prediction storage.
 10. Message history.
 11. Parent data isolation.
-12. Flutter connection to the backend.
-13. Basic parent dashboard.
-14. Automated backend tests.
+12. Dashboard statistics.
+13. Alerts for high-risk messages.
+14. Flutter connection to the backend.
+15. Basic parent dashboard.
+16. Automated backend tests.
 
 ---
 
-## 17. Planned Features
+## 19. Planned Features
 
 The following features are planned for future development:
 
 - Real Hebrew AI/NLP model.
-- Alerts for high-risk messages.
-- Dashboard statistics.
-- Message counts by risk level.
-- Message counts by category.
 - CSV file upload.
 - Batch message analysis.
 - Export reports.
@@ -552,7 +687,7 @@ The following features are planned for future development:
 
 ---
 
-## 18. Suggested Team Responsibilities
+## 20. Suggested Team Responsibilities
 
 ### Student 1 - Flutter Frontend
 
@@ -567,6 +702,7 @@ Responsibilities:
 - Message submission form.
 - Message history page.
 - Alerts and reports UI.
+- Dashboard statistics UI.
 - API communication.
 
 ### Student 2 - Backend and Database
@@ -584,6 +720,8 @@ Responsibilities:
 - Message storage.
 - Prediction storage.
 - Message history.
+- Dashboard statistics.
+- Alerts API.
 - Automated backend tests.
 
 ### Student 3 - AI/NLP
@@ -601,7 +739,7 @@ Responsibilities:
 
 ---
 
-## 19. Recommended Technologies
+## 21. Recommended Technologies
 
 ### Client
 
@@ -649,7 +787,7 @@ Responsibilities:
 
 ---
 
-## 20. Security and Privacy Notes
+## 22. Security and Privacy Notes
 
 The project processes potentially sensitive messages involving children.
 
@@ -663,12 +801,13 @@ During development:
 - Do not store plain-text passwords.
 - Keep the `.env` file outside Git.
 - Limit every parent to their own data.
+- Make sure alerts and dashboard statistics are filtered by the authenticated parent.
 
 A production version would require additional security, privacy, legal, encryption, and data-retention controls.
 
 ---
 
-## 21. Git Workflow
+## 23. Git Workflow
 
 The team uses one shared GitHub repository.
 
@@ -692,4 +831,3 @@ After testing:
 4. Let another team member review the changes.
 5. Merge the Pull Request into `main`.
 6. Update all local branches from `main`.
-

@@ -395,6 +395,10 @@ GET /api/children
 
 Required.
 
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
 ### Description
 
 Return only children belonging to the currently logged-in parent.
@@ -439,6 +443,10 @@ GET /api/children/1
 ### Authentication
 
 Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
 
 ### Description
 
@@ -490,6 +498,10 @@ POST /api/analyze
 
 Required.
 
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
 ### Description
 
 Analyze a message for a child owned by the logged-in parent.
@@ -501,7 +513,8 @@ The endpoint:
 3. Sends the message to the classifier.
 4. Stores the original message.
 5. Stores the prediction.
-6. Returns the analysis result.
+6. Creates an alert automatically if the risk level is `High`.
+7. Returns the analysis result.
 
 ### Request Body
 
@@ -531,6 +544,8 @@ The endpoint:
   "explanation": "The message contains humiliating or socially harmful language."
 }
 ```
+
+If the returned `risk_level` is `High`, the backend creates a new alert automatically.
 
 ### Child Not Found or Not Owned by User
 
@@ -563,6 +578,10 @@ GET /api/messages
 ### Authentication
 
 Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
 
 ### Description
 
@@ -605,6 +624,10 @@ GET /api/messages?child_id=1
 
 Required.
 
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
 ### Description
 
 Return messages for a specific child only when that child belongs to the current parent.
@@ -628,7 +651,211 @@ Return messages for a specific child only when that child belongs to the current
 
 ---
 
-# 10. Message Categories
+# 10. Dashboard Endpoints
+
+## 10.1 Get Dashboard Statistics
+
+### Endpoint
+
+```http
+GET /api/dashboard/stats
+```
+
+### Authentication
+
+Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
+### Description
+
+Return dashboard statistics for the currently logged-in parent.
+
+The backend filters all statistics by the current parent.
+
+The response includes:
+
+- Total number of children.
+- Total number of analyzed messages.
+- Number of messages by risk level.
+- Number of messages by category.
+
+### Successful Response
+
+```json
+{
+  "total_children": 1,
+  "total_messages": 2,
+  "risk_levels": {
+    "Low": 1,
+    "Medium": 0,
+    "High": 1
+  },
+  "categories": {
+    "Normal": 1,
+    "Insult": 0,
+    "Threat": 0,
+    "Harassment": 0,
+    "Bullying": 1
+  }
+}
+```
+
+---
+
+# 11. Alerts Endpoints
+
+## 11.1 Get Alerts
+
+### Endpoint
+
+```http
+GET /api/alerts
+```
+
+### Authentication
+
+Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
+### Description
+
+Return alerts that belong only to the currently logged-in parent.
+
+Alerts are created automatically when a message receives a `High` risk level.
+
+### Optional Query Parameter
+
+```text
+unread_only=true
+```
+
+When this parameter is true, the endpoint returns only unread alerts.
+
+### Example
+
+```http
+GET /api/alerts?unread_only=true
+```
+
+### Successful Response
+
+```json
+[
+  {
+    "alert_id": 1,
+    "child_id": 1,
+    "message_id": 1,
+    "title": "High risk message detected",
+    "category": "Bullying",
+    "risk_level": "High",
+    "is_read": false,
+    "created_at": "2026-07-08T14:50:00"
+  }
+]
+```
+
+---
+
+## 11.2 Get Unread Alerts Count
+
+### Endpoint
+
+```http
+GET /api/alerts/unread-count
+```
+
+### Authentication
+
+Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
+### Description
+
+Return the number of unread alerts for the currently logged-in parent.
+
+### Successful Response
+
+```json
+{
+  "unread_count": 1
+}
+```
+
+---
+
+## 11.3 Mark Alert as Read
+
+### Endpoint
+
+```http
+PATCH /api/alerts/{alert_id}/read
+```
+
+### Example
+
+```http
+PATCH /api/alerts/1/read
+```
+
+### Authentication
+
+Required.
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
+### Description
+
+Mark an alert as read.
+
+The backend verifies that the alert belongs to a child owned by the current parent.
+
+### Successful Response
+
+```json
+{
+  "alert_id": 1,
+  "child_id": 1,
+  "message_id": 1,
+  "title": "High risk message detected",
+  "category": "Bullying",
+  "risk_level": "High",
+  "is_read": true,
+  "created_at": "2026-07-08T14:50:00"
+}
+```
+
+### Alert Not Found or Not Owned by User
+
+Status:
+
+```text
+404 Not Found
+```
+
+Body:
+
+```json
+{
+  "detail": "Alert not found"
+}
+```
+
+The backend intentionally returns the same result for a missing alert and another parent's alert.
+
+---
+
+# 12. Message Categories
 
 The classifier returns one of the following categories:
 
@@ -661,7 +888,7 @@ A message containing humiliation, social exclusion, or emotional harm.
 
 ---
 
-# 11. Risk Levels
+# 13. Risk Levels
 
 The classifier returns one of the following risk levels:
 
@@ -686,7 +913,7 @@ Clearly threatening, dangerous, humiliating, or bullying content.
 
 ---
 
-# 12. AI/NLP Function Contract
+# 14. AI/NLP Function Contract
 
 The backend calls an internal function:
 
@@ -726,9 +953,9 @@ The final AI/NLP model must preserve the same output structure so that the FastA
 
 ---
 
-# 13. Current Database Contract
+# 15. Current Database Contract
 
-## 13.1 Users
+## 15.1 Users
 
 ```text
 id
@@ -739,7 +966,7 @@ role
 created_at
 ```
 
-## 13.2 Children
+## 15.2 Children
 
 ```text
 id
@@ -755,7 +982,7 @@ created_at
 users.id
 ```
 
-## 13.3 Messages
+## 15.3 Messages
 
 ```text
 id
@@ -770,7 +997,7 @@ created_at
 children.id
 ```
 
-## 13.4 Predictions
+## 15.4 Predictions
 
 ```text
 id
@@ -788,9 +1015,41 @@ created_at
 messages.id
 ```
 
+## 15.5 Alerts
+
+```text
+id
+child_id
+message_id
+prediction_id
+title
+category
+risk_level
+is_read
+created_at
+```
+
+`child_id` references:
+
+```text
+children.id
+```
+
+`message_id` references:
+
+```text
+messages.id
+```
+
+`prediction_id` references:
+
+```text
+predictions.id
+```
+
 ---
 
-# 14. Authorization Rules
+# 16. Authorization Rules
 
 The backend currently enforces these rules:
 
@@ -800,15 +1059,18 @@ The backend currently enforces these rules:
 - A user cannot retrieve another user's child.
 - A user can analyze messages only for their own children.
 - A user can retrieve only messages belonging to their own children.
+- A user can retrieve only dashboard statistics based on their own children and messages.
+- A user can retrieve only alerts belonging to their own children.
+- A user can mark only their own alerts as read.
 - Password hashes are never returned.
 - Access tokens must not be committed to Git.
 - Secret keys must remain in the local `.env` file.
 
 ---
 
-# 15. Validation and Error Responses
+# 17. Validation and Error Responses
 
-## 15.1 Validation Error
+## 17.1 Validation Error
 
 Status:
 
@@ -829,7 +1091,7 @@ FastAPI returns a detailed validation response.
 
 ---
 
-## 15.2 Unauthorized Request
+## 17.2 Unauthorized Request
 
 Status:
 
@@ -851,7 +1113,7 @@ Example causes:
 
 ---
 
-## 15.3 Not Found
+## 17.3 Not Found
 
 Status:
 
@@ -867,9 +1129,11 @@ Example:
 }
 ```
 
+The same pattern is used for resources that do not exist and resources that belong to another parent.
+
 ---
 
-## 15.4 Duplicate Resource
+## 17.4 Duplicate Resource
 
 Status:
 
@@ -887,7 +1151,7 @@ Example:
 
 ---
 
-# 16. Current Automated Test Status
+# 18. Current Automated Test Status
 
 The backend currently has automated tests for:
 
@@ -898,6 +1162,8 @@ The backend currently has automated tests for:
 - Child ownership.
 - Message analysis.
 - Message history.
+- Dashboard statistics.
+- Alerts.
 - Authorization.
 - Request validation.
 - Protected endpoints.
@@ -905,7 +1171,7 @@ The backend currently has automated tests for:
 Current result:
 
 ```text
-29 passed
+38 passed
 ```
 
 Tests are executed with:
@@ -916,7 +1182,7 @@ python -m pytest -q
 
 ---
 
-# 17. Currently Implemented Endpoint Summary
+# 19. Currently Implemented Endpoint Summary
 
 | Method | Endpoint | Authentication | Status |
 |---|---|---|---|
@@ -931,28 +1197,30 @@ python -m pytest -q
 | POST | `/api/analyze` | Yes | Implemented |
 | GET | `/api/messages` | Yes | Implemented |
 | GET | `/api/messages?child_id={id}` | Yes | Implemented |
+| GET | `/api/dashboard/stats` | Yes | Implemented |
+| GET | `/api/alerts` | Yes | Implemented |
+| GET | `/api/alerts?unread_only=true` | Yes | Implemented |
+| GET | `/api/alerts/unread-count` | Yes | Implemented |
+| PATCH | `/api/alerts/{alert_id}/read` | Yes | Implemented |
 
 ---
 
-# 18. Planned Endpoints
+# 20. Planned Endpoints
 
 The following endpoints are planned but not yet implemented:
 
 ```text
-GET  /api/dashboard/stats
-GET  /api/dashboard/categories
-GET  /api/dashboard/risk-levels
-GET  /api/alerts
-PUT  /api/alerts/{alert_id}
 POST /api/analyze/batch
 POST /api/messages/upload
+GET  /api/reports
+GET  /api/reports/export
 ```
 
 These endpoints must not be treated as available until their implementation and tests are completed.
 
 ---
 
-# 19. Flutter Integration Notes
+# 21. Flutter Integration Notes
 
 The Flutter client should:
 
@@ -964,6 +1232,9 @@ The Flutter client should:
 6. Use the returned `child_id` for message analysis.
 7. Call `POST /api/analyze` to analyze a message.
 8. Call `GET /api/messages` to show message history.
-9. Handle 401 responses by requiring login again.
-10. Never communicate directly with the database or AI module.
-
+9. Call `GET /api/dashboard/stats` to show parent dashboard statistics.
+10. Call `GET /api/alerts` to show alerts.
+11. Call `GET /api/alerts/unread-count` to show unread alert count.
+12. Call `PATCH /api/alerts/{alert_id}/read` when the parent opens or handles an alert.
+13. Handle 401 responses by requiring login again.
+14. Never communicate directly with the database or AI module.
