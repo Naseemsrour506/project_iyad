@@ -1,3 +1,4 @@
+from app.models.alert import Alert
 from app.models.child import Child
 from app.models.message import Message
 from app.models.prediction import Prediction
@@ -8,5 +9,6 @@ __all__ = [
     "User",
     "Child",
     "Message",
-    "Prediction"
+    "Prediction",
+    "Alert"
 ]

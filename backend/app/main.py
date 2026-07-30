@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app import models
 from app.database import Base, engine
+from app.routers.alerts import router as alerts_router
 from app.routers.analyze import router as analyze_router
 from app.routers.auth import router as auth_router
 from app.routers.children import router as children_router
@@ -27,6 +28,7 @@ app.include_router(children_router)
 app.include_router(analyze_router)
 app.include_router(messages_router)
 app.include_router(dashboard_router)
+app.include_router(alerts_router)
 
 
 @app.get("/")

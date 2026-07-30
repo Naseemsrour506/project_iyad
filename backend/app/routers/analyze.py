@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
+from app.models.alert import Alert
 from app.models.child import Child
 from app.models.message import Message
 from app.models.prediction import Prediction
@@ -66,6 +67,20 @@ def analyze_single_message(
     )
 
     database_session.add(prediction_record)
+    database_session.flush()
+
+    if prediction_record.risk_level == "High":
+        alert_record = Alert(
+            child_id=child.id,
+            message_id=message_record.id,
+            prediction_id=prediction_record.id,
+            title="High risk message detected",
+            category=prediction_record.category,
+            risk_level=prediction_record.risk_level
+        )
+
+        database_session.add(alert_record)
+
     database_session.commit()
     database_session.refresh(message_record)
 

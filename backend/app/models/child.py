@@ -62,3 +62,9 @@ class Child(Base):
         back_populates="child",
         cascade="all, delete-orphan"
     )
+
+    alerts = relationship(
+        "Alert",
+        back_populates="child",
+        cascade="all, delete-orphan"
+    )
