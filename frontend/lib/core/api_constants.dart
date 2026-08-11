@@ -42,6 +42,9 @@ class ApiConstants {
   // Dashboard
   static const String dashboardStats = '$apiPrefix/dashboard/stats';
 
+  // Reports
+  static const String reportsExport = '$apiPrefix/reports/export';
+
   // Alerts
   static const String alerts = '$apiPrefix/alerts';
   static const String unreadAlertsCount = '$alerts/unread-count';

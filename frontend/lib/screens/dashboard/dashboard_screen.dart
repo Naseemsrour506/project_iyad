@@ -5,6 +5,7 @@ import '../../core/app_localization.dart';
 import '../../core/app_theme.dart';
 import '../../models/dashboard_stats_model.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../utils/csv_download.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_loading_indicator.dart';
 import '../../widgets/dashboard_stat_card.dart';
@@ -29,6 +30,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _refresh() =>
       context.read<DashboardProvider>().loadStats(force: true);
+
+  Future<void> _exportCsv() async {
+    final DashboardProvider provider = context.read<DashboardProvider>();
+    final String? csvContent = await provider.exportReportCsv();
+
+    if (!mounted) return;
+
+    if (csvContent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'אירעה שגיאה בהורדת הדוח.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      downloadCsvFile('safechat_report.csv', csvContent);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('הדוח הורד בהצלחה.')));
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('הורדת CSV נתמכת כרגע בדפדפן בלבד.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +85,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _Header(onRefresh: _refresh, isLoading: provider.isLoading),
+                _Header(
+                  onRefresh: _refresh,
+                  onExport: _exportCsv,
+                  isLoading: provider.isLoading,
+                  isExporting: provider.isExporting,
+                ),
                 const SizedBox(height: 20),
                 _StatsGrid(stats: stats),
                 const SizedBox(height: 20),
@@ -74,10 +108,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onRefresh, required this.isLoading});
+  const _Header({
+    required this.onRefresh,
+    required this.onExport,
+    required this.isLoading,
+    required this.isExporting,
+  });
 
   final Future<void> Function() onRefresh;
+  final Future<void> Function() onExport;
   final bool isLoading;
+  final bool isExporting;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +146,18 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
+        IconButton.filledTonal(
+          onPressed: isExporting ? null : onExport,
+          icon: isExporting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.download_rounded),
+          tooltip: 'הורדת דוח CSV',
+        ),
+        const SizedBox(width: 8),
         IconButton.filledTonal(
           onPressed: isLoading ? null : onRefresh,
           icon: const Icon(Icons.refresh_rounded),
