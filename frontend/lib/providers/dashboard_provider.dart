@@ -12,11 +12,13 @@ class DashboardProvider extends ChangeNotifier {
 
   DashboardStatsModel? _stats;
   bool _isLoading = false;
+  bool _isExporting = false;
   String? _errorMessage;
   bool _hasLoadedOnce = false;
 
   DashboardStatsModel? get stats => _stats;
   bool get isLoading => _isLoading;
+  bool get isExporting => _isExporting;
   String? get errorMessage => _errorMessage;
   bool get hasLoadedOnce => _hasLoadedOnce;
 
@@ -41,9 +43,31 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> exportReportCsv() async {
+    if (_isExporting) return null;
+
+    _isExporting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      return await _dashboardService.exportReportCsv();
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return null;
+    } catch (_) {
+      _errorMessage = 'אירעה שגיאה בהורדת הדוח.';
+      return null;
+    } finally {
+      _isExporting = false;
+      notifyListeners();
+    }
+  }
+
   void reset() {
     _stats = null;
     _isLoading = false;
+    _isExporting = false;
     _errorMessage = null;
     _hasLoadedOnce = false;
     notifyListeners();
