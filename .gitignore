@@ -1,0 +1,9 @@
+backend/.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/safechat.db
+backend/.env
