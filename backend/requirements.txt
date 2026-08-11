@@ -8,3 +8,5 @@ python-jose[cryptography]
 pytest
 httpx2
 email-validator
+
+python-multipart

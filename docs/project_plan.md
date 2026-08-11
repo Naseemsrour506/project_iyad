@@ -672,7 +672,6 @@ The minimum working product should include:
 The following features are planned for future development:
 
 - Real Hebrew AI/NLP model.
-- CSV file upload.
 - Batch message analysis.
 - Admin role and admin panel.
 - Audit log.
