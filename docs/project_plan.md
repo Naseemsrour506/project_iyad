@@ -674,7 +674,6 @@ The following features are planned for future development:
 - Real Hebrew AI/NLP model.
 - CSV file upload.
 - Batch message analysis.
-- Export reports.
 - Admin role and admin panel.
 - Audit log.
 - Password-reset flow.

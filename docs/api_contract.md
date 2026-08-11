@@ -1255,6 +1255,41 @@ Example:
 
 ---
 
+# Report CSV Export Endpoint
+
+## GET `/api/reports/export`
+
+This endpoint exports analyzed report messages as a CSV file.
+
+Authentication is required.
+
+### Query Parameters
+
+- `child_id` optional filter by child.
+- `category` optional filter by category.
+- `risk_level` optional filter by risk level.
+- `limit` optional maximum number of rows.
+
+### CSV Columns
+
+- `message_id`
+- `child_id`
+- `child_name`
+- `message`
+- `category`
+- `risk_level`
+- `confidence`
+- `explanation`
+- `created_at`
+
+### Behavior
+
+- The endpoint exports only data that belongs to the authenticated parent.
+- The CSV file is returned as an attachment named `safechat_report.csv`.
+- The endpoint supports the same basic filters as the report messages endpoint.
+
+---
+
 # 19. Currently Implemented Endpoint Summary
 
 | Method | Endpoint | Authentication | Status |
@@ -1274,6 +1309,8 @@ Example:
 | GET | `/api/reports/messages` | Yes | Implemented |
 | GET | `/api/reports/messages?child_id={id}&category={category}&risk_level={risk_level}` | Yes | Implemented |
 | GET | `/api/reports/summary` | Yes | Implemented |
+| GET | `/api/reports/export` | Yes | Implemented |
+| GET | `/api/reports/export?child_id={id}&category={category}&risk_level={risk_level}` | Yes | Implemented |
 | GET | `/api/alerts` | Yes | Implemented |
 | GET | `/api/alerts?unread_only=true` | Yes | Implemented |
 | GET | `/api/alerts/unread-count` | Yes | Implemented |
@@ -1288,7 +1325,7 @@ The following endpoints are planned but not yet implemented:
 ```text
 POST /api/analyze/batch
 POST /api/messages/upload
-GET  /api/reports/export
+
 ```
 
 These endpoints must not be treated as available until their implementation and tests are completed.
