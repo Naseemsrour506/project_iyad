@@ -9,6 +9,7 @@ from app.routers.auth import router as auth_router
 from app.routers.children import router as children_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.messages import router as messages_router
+from app.routers.reports import router as reports_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -39,6 +40,7 @@ app.include_router(analyze_router)
 app.include_router(messages_router)
 app.include_router(dashboard_router)
 app.include_router(alerts_router)
+app.include_router(reports_router)
 
 
 @app.get("/")
