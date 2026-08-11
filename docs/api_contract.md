@@ -1182,6 +1182,79 @@ python -m pytest -q
 
 ---
 
+# Batch Message Analysis Endpoint
+
+## POST `/api/analyze/batch`
+
+This endpoint allows the parent to analyze multiple messages for the same child in one request.
+
+Authentication is required.
+
+### Request Body
+
+The request body contains:
+
+- `child_id`: the child profile ID.
+- `messages`: a list of message texts to analyze.
+
+Example:
+
+    {
+      "child_id": 1,
+      "messages": [
+        "שלום מה שלומך",
+        "אתה אפס ואף אחד לא אוהב אותך"
+      ]
+    }
+
+### Response Body
+
+The response contains:
+
+- `child_id`: the child profile ID.
+- `total_messages`: number of analyzed messages.
+- `results`: list of analysis results.
+
+Each result contains:
+
+- `message_id`
+- `child_id`
+- `message`
+- `category`
+- `risk_level`
+- `confidence`
+- `explanation`
+
+Example:
+
+    {
+      "child_id": 1,
+      "total_messages": 2,
+      "results": [
+        {
+          "message_id": 10,
+          "child_id": 1,
+          "message": "שלום מה שלומך",
+          "category": "Normal",
+          "risk_level": "Low",
+          "confidence": 0.9,
+          "explanation": "No harmful content detected."
+        }
+      ]
+    }
+
+### Behavior
+
+- The endpoint checks that the child belongs to the authenticated parent.
+- Each message is analyzed separately.
+- Each message and prediction are stored in the database.
+- A high-risk message creates an alert automatically.
+- Empty message lists are rejected.
+- Empty message text is rejected.
+- The maximum number of messages per request is 50.
+
+---
+
 # 19. Currently Implemented Endpoint Summary
 
 | Method | Endpoint | Authentication | Status |
