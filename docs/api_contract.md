@@ -1290,6 +1290,66 @@ Authentication is required.
 
 ---
 
+# CSV Message Upload Endpoint
+
+## POST `/api/messages/upload`
+
+This endpoint allows the parent to upload a CSV file that contains multiple messages for the same child.
+
+Authentication is required.
+
+### Request Type
+
+The request uses `multipart/form-data`.
+
+### Form Fields
+
+- `child_id`: the child profile ID.
+- `file`: a CSV file.
+
+### CSV Format
+
+The CSV file must contain a column named `message`.
+
+Example:
+
+    message
+    שלום מה שלומך
+    אתה אפס ואף אחד לא אוהב אותך
+    אני מקווה שיהיה לך יום טוב
+
+### Response Body
+
+The response is the same structure as batch analysis:
+
+- `child_id`
+- `total_messages`
+- `results`
+
+Each result includes:
+
+- `message_id`
+- `child_id`
+- `message`
+- `category`
+- `risk_level`
+- `confidence`
+- `explanation`
+
+### Behavior
+
+- The endpoint checks that the child belongs to the authenticated parent.
+- Only CSV files are supported.
+- The CSV file must be UTF-8 encoded.
+- The CSV file must contain a `message` column.
+- Empty CSV files are rejected.
+- Empty message rows are ignored.
+- The maximum number of messages per upload is 50.
+- Each valid message is analyzed and stored.
+- A high-risk message creates an alert automatically.
+
+---
+
 # 19. Currently Implemented Endpoint Summary
 
 | Method | Endpoint | Authentication | Status |
@@ -1305,6 +1365,7 @@ Authentication is required.
 | POST | `/api/analyze` | Yes | Implemented |
 | GET | `/api/messages` | Yes | Implemented |
 | GET | `/api/messages?child_id={id}` | Yes | Implemented |
+| POST | `/api/messages/upload` | Yes | Implemented |
 | GET | `/api/dashboard/stats` | Yes | Implemented |
 | GET | `/api/reports/messages` | Yes | Implemented |
 | GET | `/api/reports/messages?child_id={id}&category={category}&risk_level={risk_level}` | Yes | Implemented |
@@ -1324,7 +1385,6 @@ The following endpoints are planned but not yet implemented:
 
 ```text
 POST /api/analyze/batch
-POST /api/messages/upload
 
 ```
 
@@ -1344,6 +1404,8 @@ The Flutter client should:
 6. Use the returned `child_id` for message analysis.
 7. Call `POST /api/analyze` to analyze a message.
 8. Call `GET /api/messages` to show message history.
+
+Call `POST /api/messages/upload` to upload a CSV file with multiple messages.
 9. Call `GET /api/dashboard/stats` to show parent dashboard statistics.
 10. Call `GET /api/alerts` to show alerts.
 11. Call `GET /api/alerts/unread-count` to show unread alert count.
