@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_theme.dart';
 import '../providers/alerts_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/dashboard_provider.dart';
+import '../providers/messages_provider.dart';
 import '../screens/alerts/alerts_screen.dart';
 import '../screens/analysis/analyze_message_screen.dart';
 import '../screens/children/children_screen.dart';
@@ -37,6 +41,8 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
+  static const int _dashboardIndex = 0;
+  static const int _historyIndex = 3;
   static const int _alertsIndex = 4;
 
   static final List<_NavSection> _sections = <_NavSection>[
@@ -85,6 +91,26 @@ class _MainNavigationState extends State<MainNavigation> {
 
   void _onSectionSelected(int index) {
     setState(() => _selectedIndex = index);
+    _refreshSectionData(index);
+  }
+
+  void _refreshSectionData(int index) {
+    if (index == _dashboardIndex) {
+      unawaited(context.read<DashboardProvider>().loadStats(force: true));
+      unawaited(context.read<AlertsProvider>().refreshUnreadCount());
+      return;
+    }
+
+    if (index == _historyIndex) {
+      unawaited(context.read<MessagesProvider>().loadMessages(force: true));
+      return;
+    }
+
+    if (index == _alertsIndex) {
+      final AlertsProvider alertsProvider = context.read<AlertsProvider>();
+      unawaited(alertsProvider.loadAlerts(force: true));
+      unawaited(alertsProvider.refreshUnreadCount());
+    }
   }
 
   Future<void> _confirmLogout() async {
