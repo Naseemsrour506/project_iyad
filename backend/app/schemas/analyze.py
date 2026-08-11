@@ -31,3 +31,14 @@ class AnalyzeResponse(BaseModel):
     risk_level: RiskLevel
     confidence: float
     explanation: str
+
+
+class BatchAnalyzeRequest(BaseModel):
+    child_id: int = Field(..., ge=1)
+    messages: list[str]
+
+
+class BatchAnalyzeResponse(BaseModel):
+    child_id: int
+    total_messages: int
+    results: list[AnalyzeResponse]
