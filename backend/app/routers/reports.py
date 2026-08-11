@@ -1,6 +1,9 @@
+import csv
+from io import StringIO
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -42,6 +45,30 @@ def get_current_user_report_query(
             Child.parent_id == current_user.id
         )
     )
+
+
+def apply_report_filters(
+    query,
+    child_id: Optional[int],
+    category: Optional[str],
+    risk_level: Optional[str]
+):
+    if child_id is not None:
+        query = query.filter(
+            Child.id == child_id
+        )
+
+    if category is not None:
+        query = query.filter(
+            Prediction.category == category
+        )
+
+    if risk_level is not None:
+        query = query.filter(
+            Prediction.risk_level == risk_level
+        )
+
+    return query
 
 
 def build_report_message_response(
@@ -90,20 +117,12 @@ def get_report_messages(
         current_user
     )
 
-    if child_id is not None:
-        query = query.filter(
-            Child.id == child_id
-        )
-
-    if category is not None:
-        query = query.filter(
-            Prediction.category == category
-        )
-
-    if risk_level is not None:
-        query = query.filter(
-            Prediction.risk_level == risk_level
-        )
+    query = apply_report_filters(
+        query,
+        child_id,
+        category,
+        risk_level
+    )
 
     rows = (
         query
@@ -120,6 +139,86 @@ def get_report_messages(
         )
         for message, prediction, child in rows
     ]
+
+
+@router.get("/export")
+def export_report_messages(
+    child_id: Optional[int] = Query(
+        default=None,
+        ge=1
+    ),
+    category: Optional[str] = Query(
+        default=None
+    ),
+    risk_level: Optional[str] = Query(
+        default=None
+    ),
+    limit: int = Query(
+        default=500,
+        ge=1,
+        le=1000
+    ),
+    current_user: User = Depends(get_current_user),
+    database_session: Session = Depends(get_db)
+):
+    query = get_current_user_report_query(
+        database_session,
+        current_user
+    )
+
+    query = apply_report_filters(
+        query,
+        child_id,
+        category,
+        risk_level
+    )
+
+    rows = (
+        query
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    csv_file = StringIO()
+    csv_file.write("\ufeff")
+
+    writer = csv.writer(csv_file)
+
+    writer.writerow([
+        "message_id",
+        "child_id",
+        "child_name",
+        "message",
+        "category",
+        "risk_level",
+        "confidence",
+        "explanation",
+        "created_at"
+    ])
+
+    for message, prediction, child in rows:
+        writer.writerow([
+            message.id,
+            child.id,
+            child.full_name,
+            message.message_text,
+            prediction.category,
+            prediction.risk_level,
+            prediction.confidence,
+            prediction.explanation,
+            message.created_at.isoformat()
+        ])
+
+    return Response(
+        content=csv_file.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="safechat_report.csv"'
+            )
+        }
+    )
 
 
 @router.get(
