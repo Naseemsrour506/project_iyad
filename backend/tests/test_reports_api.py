@@ -248,3 +248,106 @@ def test_reports_require_authentication():
 
     assert messages_response.status_code in (401, 403)
     assert summary_response.status_code in (401, 403)
+
+
+def test_export_report_messages_as_csv():
+    headers, _ = register_and_login(
+        client,
+        "report-export"
+    )
+
+    child_id = create_child(
+        client,
+        headers,
+        full_name="Export Child"
+    )
+
+    client.post(
+        "/api/analyze",
+        headers=headers,
+        json={
+            "child_id": child_id,
+            "message": "שלום מה שלומך?"
+        }
+    )
+
+    client.post(
+        "/api/analyze",
+        headers=headers,
+        json={
+            "child_id": child_id,
+            "message": "אתה אפס ואף אחד לא אוהב אותך"
+        }
+    )
+
+    response = client.get(
+        "/api/reports/export",
+        headers=headers
+    )
+
+    assert response.status_code == 200
+    assert "text/csv" in response.headers["content-type"]
+    assert (
+        response.headers["content-disposition"]
+        == 'attachment; filename="safechat_report.csv"'
+    )
+
+    csv_text = response.text
+
+    assert "message_id,child_id,child_name,message,category,risk_level" in csv_text
+    assert "Export Child" in csv_text
+    assert "Normal" in csv_text
+    assert "Bullying" in csv_text
+    assert "High" in csv_text
+
+
+def test_export_report_messages_filter_by_risk_level():
+    headers, _ = register_and_login(
+        client,
+        "report-export-risk"
+    )
+
+    child_id = create_child(
+        client,
+        headers,
+        full_name="Export Risk Child"
+    )
+
+    client.post(
+        "/api/analyze",
+        headers=headers,
+        json={
+            "child_id": child_id,
+            "message": "שלום"
+        }
+    )
+
+    client.post(
+        "/api/analyze",
+        headers=headers,
+        json={
+            "child_id": child_id,
+            "message": "אתה אפס ואף אחד לא אוהב אותך"
+        }
+    )
+
+    response = client.get(
+        "/api/reports/export?risk_level=High",
+        headers=headers
+    )
+
+    assert response.status_code == 200
+
+    csv_text = response.text
+
+    assert "Bullying" in csv_text
+    assert "High" in csv_text
+    assert "Normal" not in csv_text
+
+
+def test_export_report_messages_requires_authentication():
+    response = client.get(
+        "/api/reports/export"
+    )
+
+    assert response.status_code in (401, 403)
