@@ -30,8 +30,8 @@ SafeChat AI aims to provide an early-warning system that:
 - Calculates a risk level.
 - Stores message history.
 - Creates alerts for high-risk messages.
-- Allows each parent to access only their own children, messages, alerts, and statistics.
-- Provides a foundation for reports, notifications, and dashboard statistics.
+- Allows each parent to access only their own children, messages, alerts, statistics, and reports.
+- Provides report data, notification foundation, and dashboard statistics.
 
 ---
 

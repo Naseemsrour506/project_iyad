@@ -1198,6 +1198,9 @@ python -m pytest -q
 | GET | `/api/messages` | Yes | Implemented |
 | GET | `/api/messages?child_id={id}` | Yes | Implemented |
 | GET | `/api/dashboard/stats` | Yes | Implemented |
+| GET | `/api/reports/messages` | Yes | Implemented |
+| GET | `/api/reports/messages?child_id={id}&category={category}&risk_level={risk_level}` | Yes | Implemented |
+| GET | `/api/reports/summary` | Yes | Implemented |
 | GET | `/api/alerts` | Yes | Implemented |
 | GET | `/api/alerts?unread_only=true` | Yes | Implemented |
 | GET | `/api/alerts/unread-count` | Yes | Implemented |
@@ -1212,7 +1215,6 @@ The following endpoints are planned but not yet implemented:
 ```text
 POST /api/analyze/batch
 POST /api/messages/upload
-GET  /api/reports
 GET  /api/reports/export
 ```
 
