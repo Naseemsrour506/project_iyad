@@ -13,7 +13,12 @@ from app.models.child import Child
 from app.models.message import Message
 from app.models.prediction import Prediction
 from app.models.user import User
-from app.schemas.analyze import AnalyzeRequest, AnalyzeResponse
+from app.schemas.analyze import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    BatchAnalyzeRequest,
+    BatchAnalyzeResponse
+)
 from app.services.classifier import analyze_message
 
 
@@ -23,20 +28,16 @@ router = APIRouter(
 )
 
 
-@router.post(
-    "/analyze",
-    response_model=AnalyzeResponse
-)
-def analyze_single_message(
-    payload: AnalyzeRequest,
-    current_user: User = Depends(get_current_user),
-    database_session: Session = Depends(get_db)
-):
+def get_child_for_current_user(
+    child_id: int,
+    current_user: User,
+    database_session: Session
+) -> Child:
     child = (
         database_session
         .query(Child)
         .filter(
-            Child.id == payload.child_id,
+            Child.id == child_id,
             Child.parent_id == current_user.id
         )
         .first()
@@ -48,11 +49,19 @@ def analyze_single_message(
             detail="Child not found"
         )
 
-    analysis_result = analyze_message(payload.message)
+    return child
+
+
+def save_analyzed_message(
+    child: Child,
+    message_text: str,
+    database_session: Session
+) -> AnalyzeResponse:
+    analysis_result = analyze_message(message_text)
 
     message_record = Message(
         child_id=child.id,
-        message_text=payload.message
+        message_text=message_text
     )
 
     database_session.add(message_record)
@@ -81,9 +90,6 @@ def analyze_single_message(
 
         database_session.add(alert_record)
 
-    database_session.commit()
-    database_session.refresh(message_record)
-
     return AnalyzeResponse(
         message_id=message_record.id,
         child_id=message_record.child_id,
@@ -92,4 +98,83 @@ def analyze_single_message(
         risk_level=prediction_record.risk_level,
         confidence=prediction_record.confidence,
         explanation=prediction_record.explanation
+    )
+
+
+@router.post(
+    "/analyze",
+    response_model=AnalyzeResponse
+)
+def analyze_single_message(
+    payload: AnalyzeRequest,
+    current_user: User = Depends(get_current_user),
+    database_session: Session = Depends(get_db)
+):
+    child = get_child_for_current_user(
+        payload.child_id,
+        current_user,
+        database_session
+    )
+
+    result = save_analyzed_message(
+        child,
+        payload.message,
+        database_session
+    )
+
+    database_session.commit()
+
+    return result
+
+
+@router.post(
+    "/analyze/batch",
+    response_model=BatchAnalyzeResponse
+)
+def analyze_batch_messages(
+    payload: BatchAnalyzeRequest,
+    current_user: User = Depends(get_current_user),
+    database_session: Session = Depends(get_db)
+):
+    if len(payload.messages) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Messages list cannot be empty"
+        )
+
+    if len(payload.messages) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot analyze more than 50 messages at once"
+        )
+
+    child = get_child_for_current_user(
+        payload.child_id,
+        current_user,
+        database_session
+    )
+
+    results = []
+
+    for message_text in payload.messages:
+        if not message_text.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Message text cannot be empty"
+            )
+
+        result = save_analyzed_message(
+            child,
+            message_text,
+            database_session
+        )
+
+        results.append(result)
+
+    database_session.commit()
+
+    return BatchAnalyzeResponse(
+        child_id=child.id,
+        total_messages=len(results),
+        results=results
     )
