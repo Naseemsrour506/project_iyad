@@ -81,6 +81,31 @@ The client stores the access token securely and sends it only to the backend.
 
 ---
 
+## 4.1 AI Analysis Contract
+
+Message analysis is performed by the backend.
+
+The client sends the message text to the FastAPI backend.  
+The backend sends the message to the AI classifier and returns a structured response to the client.
+
+The current implementation uses Gemini API as the main Hebrew message classifier.
+
+If Gemini is unavailable, not configured, or returns an invalid response, the backend automatically falls back to a local rule-based classifier.
+
+The API response structure does not change between Gemini and the fallback classifier.
+
+The classifier returns:
+
+- `category`
+- `risk_level`
+- `confidence`
+- `explanation`
+
+The `category` and `risk_level` values remain in English for backend and frontend compatibility.  
+The `explanation` is returned in Hebrew for display in the parent dashboard.
+
+---
+
 # 5. System Endpoints
 
 ## 5.1 Root Status
@@ -1171,7 +1196,7 @@ The backend currently has automated tests for:
 Current result:
 
 ```text
-38 passed
+65 passed, 1 warning
 ```
 
 Tests are executed with:
