@@ -193,7 +193,9 @@ Rules:
 - Use "Insult" and usually "Medium" for direct offensive language, curses, or name-calling.
 - Use "Harassment" and usually "Medium" when the message suggests repeated unwanted contact or persistent bothering.
 - Use "Normal" and "Low" for harmless messages.
-- The explanation must be short, clear, and parent-friendly.
+- The explanation field must be written in Hebrew only, because the parent dashboard UI is in Hebrew.
+- Keep category and risk_level in English exactly as listed above.
+- If the message contains an unwanted or inappropriate intimate/sexual advance, classify it as Harassment.
 - The confidence must be a number between 0 and 1.
 
 Return exactly this JSON structure:
