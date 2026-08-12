@@ -23,3 +23,13 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 )
+
+
+AI_PROVIDER = os.getenv("AI_PROVIDER", "rule_based").strip().lower()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-2.5-flash"
+).strip()

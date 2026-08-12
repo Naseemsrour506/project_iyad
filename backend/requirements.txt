@@ -10,3 +10,4 @@ httpx2
 email-validator
 
 python-multipart
+google-genai
