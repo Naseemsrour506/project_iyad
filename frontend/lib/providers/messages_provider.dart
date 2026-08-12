@@ -27,7 +27,9 @@ class MessagesProvider extends ChangeNotifier {
   int? _selectedChildFilter;
 
   bool _isAnalyzing = false;
+  bool _isUploadingCsv = false;
   AnalysisResultModel? _lastResult;
+  BatchAnalysisResultModel? _lastUploadResult;
   String? _analysisError;
 
   List<AnalyzedMessageModel> get messages =>
@@ -39,7 +41,10 @@ class MessagesProvider extends ChangeNotifier {
   bool get isEmpty => _hasLoadedOnce && _messages.isEmpty;
 
   bool get isAnalyzing => _isAnalyzing;
+  bool get isUploadingCsv => _isUploadingCsv;
+  bool get isBusy => _isAnalyzing || _isUploadingCsv;
   AnalysisResultModel? get lastResult => _lastResult;
+  BatchAnalysisResultModel? get lastUploadResult => _lastUploadResult;
   String? get analysisError => _analysisError;
 
   Future<void> loadMessages({bool force = false}) async {
@@ -91,6 +96,7 @@ class MessagesProvider extends ChangeNotifier {
       );
 
       _lastResult = result;
+      _lastUploadResult = null;
 
       // The new message belongs in the history the next time it is opened.
       _hasLoadedOnce = false;
@@ -107,8 +113,43 @@ class MessagesProvider extends ChangeNotifier {
     }
   }
 
+  Future<BatchAnalysisResultModel?> uploadCsvMessages({
+    required int childId,
+    required String filename,
+    required List<int> fileBytes,
+  }) async {
+    _isUploadingCsv = true;
+    _analysisError = null;
+    notifyListeners();
+
+    try {
+      final BatchAnalysisResultModel result = await _analysisService.uploadCsv(
+        childId: childId,
+        filename: filename,
+        fileBytes: fileBytes,
+      );
+
+      _lastUploadResult = result;
+      _lastResult = result.results.isEmpty ? null : result.results.first;
+
+      // Uploaded messages belong in the history the next time it is opened.
+      _hasLoadedOnce = false;
+      return result;
+    } on ApiException catch (error) {
+      _analysisError = error.message;
+      return null;
+    } catch (_) {
+      _analysisError = 'אירעה שגיאה בהעלאת קובץ ה-CSV.';
+      return null;
+    } finally {
+      _isUploadingCsv = false;
+      notifyListeners();
+    }
+  }
+
   void clearLastResult() {
     _lastResult = null;
+    _lastUploadResult = null;
     _analysisError = null;
     notifyListeners();
   }
@@ -120,7 +161,9 @@ class MessagesProvider extends ChangeNotifier {
     _hasLoadedOnce = false;
     _selectedChildFilter = null;
     _isAnalyzing = false;
+    _isUploadingCsv = false;
     _lastResult = null;
+    _lastUploadResult = null;
     _analysisError = null;
     notifyListeners();
   }

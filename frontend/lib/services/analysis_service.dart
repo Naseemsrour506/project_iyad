@@ -22,4 +22,23 @@ class AnalysisService {
 
     return AnalysisResultModel.fromJson(json);
   }
+
+  /// `POST /api/messages/upload`.
+  Future<BatchAnalysisResultModel> uploadCsv({
+    required int childId,
+    required String filename,
+    required List<int> fileBytes,
+  }) async {
+    final Map<String, dynamic> json = ApiService.asObject(
+      await _api.postMultipartFile(
+        ApiConstants.messagesUpload,
+        fields: <String, String>{'child_id': childId.toString()},
+        fileField: 'file',
+        filename: filename,
+        fileBytes: fileBytes,
+      ),
+    );
+
+    return BatchAnalysisResultModel.fromJson(json);
+  }
 }

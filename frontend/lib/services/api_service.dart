@@ -114,6 +114,51 @@ class ApiService {
     );
   }
 
+  Future<dynamic> postMultipartFile(
+    String path, {
+    required Map<String, String> fields,
+    required String fileField,
+    required String filename,
+    required List<int> fileBytes,
+    bool authenticated = true,
+  }) async {
+    http.Response response;
+
+    try {
+      final http.MultipartRequest request = http.MultipartRequest(
+        'POST',
+        _uri(path),
+      );
+
+      request.fields.addAll(fields);
+
+      if (authenticated) {
+        final String? token = await _tokenStorage.readToken();
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
+      }
+
+      request.files.add(
+        http.MultipartFile.fromBytes(fileField, fileBytes, filename: filename),
+      );
+
+      final http.StreamedResponse streamedResponse = await request
+          .send()
+          .timeout(_timeout);
+
+      response = await http.Response.fromStream(streamedResponse);
+    } on TimeoutException {
+      throw ApiException.timeout();
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw ApiException.network();
+    }
+
+    return _handleResponse(response);
+  }
+
   /// Executes a request and converts every failure into an [ApiException].
   Future<dynamic> _send(Future<http.Response> Function() request) async {
     http.Response response;

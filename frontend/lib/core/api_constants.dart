@@ -38,6 +38,7 @@ class ApiConstants {
 
   // Messages
   static const String messages = '$apiPrefix/messages';
+  static const String messagesUpload = '$messages/upload';
 
   // Dashboard
   static const String dashboardStats = '$apiPrefix/dashboard/stats';
