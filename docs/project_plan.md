@@ -12,7 +12,7 @@ The system allows a parent to register, log in, create child profiles, submit me
 
 The backend analyzes each message, stores the original message and its analysis result in a database, creates alerts when needed, and returns structured responses to the client application.
 
-The current classifier is a temporary rule-based implementation. It will later be replaced by a real AI/NLP model while keeping the same interface between the AI module and the backend.
+The current system uses Gemini API as the main AI classifier for Hebrew message analysis. It also includes a local rule-based fallback classifier, so the backend continues working even if the external AI provider is unavailable.
 
 ---
 
@@ -85,9 +85,11 @@ FastAPI Backend
       └── Database operations
       |
       v
-Temporary Rule-Based Hebrew Classifier
+Gemini AI Classifier
       |
-      | Will later be replaced by an AI/NLP model
+      ├── Returns category, risk level, confidence, and Hebrew explanation
+      └── Falls back to local rule-based classifier if unavailable
+      |
       v
 SQLite Database
       |
@@ -158,21 +160,19 @@ Responsibilities:
 Technology:
 
 - Python.
-- scikit-learn.
-- pandas.
-- NumPy.
-- TF-IDF.
-- Logistic Regression, Naive Bayes, or another classification model.
+- Gemini API.
+- google-genai SDK.
+- Prompt-based Hebrew text classification.
+- Local rule-based fallback classifier.
 
 Responsibilities:
 
-- Prepare and clean Hebrew text.
-- Build or load a labeled dataset.
-- Train a text classification model.
-- Classify messages.
+- Analyze Hebrew messages using Gemini API.
+- Classify messages into Normal, Insult, Threat, Harassment, or Bullying.
 - Calculate confidence.
-- Return a risk level.
-- Return an explanation or classification reason.
+- Return a risk level: Low, Medium, or High.
+- Return a Hebrew explanation for the parent dashboard.
+- Fall back to a local rule-based classifier if Gemini is unavailable.
 
 ### 7.4 Database
 
@@ -220,7 +220,8 @@ The following backend features have already been implemented:
 - Child profile retrieval.
 - Prevention of access to another parent's child.
 - Message analysis endpoint.
-- Temporary Hebrew rule-based classifier.
+- Gemini AI classifier for Hebrew message analysis.
+- Rule-based fallback classifier.
 - Message persistence.
 - Prediction persistence.
 - Message history endpoint.
@@ -237,12 +238,16 @@ The following backend features have already been implemented:
 - Mark alert as read.
 - Parent can view only alerts that belong to their own children.
 - Request and response validation using Pydantic.
+- Batch message analysis API.
+- CSV upload for multiple messages.
+- Reports API.
+- CSV report export.
 - Automated unit and API tests.
 
 Current automated test result:
 
 ```text
-38 passed
+65 passed, 1 warning
 ```
 
 ---
@@ -551,14 +556,15 @@ Example alert response:
 
 ## 16. AI/NLP Integration Status
 
-The current backend uses a temporary rule-based Hebrew classifier.
+The current backend uses Gemini API as the main Hebrew message classifier.
 
-The temporary classifier helps the team:
+The Gemini classifier and the local rule-based fallback help the team:
 
-- Develop the backend before the final AI model is ready.
+- Use Gemini API for real-time Hebrew message analysis.
+- Keep the backend stable even if Gemini is unavailable.
 - Test the API connection.
 - Test the database.
-- Test the Flutter integration later.
+- Test the Flutter integration.
 - Define a stable contract between the backend and the AI module.
 
 Current categories:
@@ -592,7 +598,7 @@ Expected output:
 }
 ```
 
-The FastAPI endpoint should not need major changes when the final AI model is connected.
+The FastAPI endpoint does not need major changes when switching between Gemini and the local fallback classifier, because the classifier returns the same response structure.
 
 ---
 
@@ -639,7 +645,7 @@ python -m pytest -q
 Current result:
 
 ```text
-38 passed
+65 passed, 1 warning
 ```
 
 ---
@@ -758,11 +764,10 @@ Responsibilities:
 ### AI/NLP
 
 - Python.
-- pandas.
-- NumPy.
-- scikit-learn.
-- TF-IDF.
-- Logistic Regression or Naive Bayes.
+- Gemini API.
+- google-genai SDK.
+- Prompt-based Hebrew text classification.
+- Local rule-based fallback classifier.
 
 ### Database
 
