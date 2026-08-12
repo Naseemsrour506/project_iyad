@@ -7,7 +7,9 @@ import '../../models/analysis_result_model.dart';
 import '../../models/child_model.dart';
 import '../../providers/alerts_provider.dart';
 import '../../providers/children_provider.dart';
+import '../../providers/dashboard_provider.dart';
 import '../../providers/messages_provider.dart';
+import '../../utils/csv_file_picker.dart';
 import '../../widgets/app_error_view.dart';
 import '../../widgets/app_loading_indicator.dart';
 import '../../widgets/empty_state.dart';
@@ -79,6 +81,64 @@ class _AnalyzeMessageScreenState extends State<AnalyzeMessageScreen> {
           result.isHighRisk
               ? 'הניתוח הושלם — זוהה סיכון גבוה ונוצרה התראה.'
               : 'הניתוח הושלם בהצלחה.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadCsv() async {
+    if (_selectedChildId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('יש לבחור ילד לפני העלאת קובץ CSV.')),
+      );
+      return;
+    }
+
+    final int childId = _selectedChildId!;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    final MessagesProvider messages = context.read<MessagesProvider>();
+    final AlertsProvider alerts = context.read<AlertsProvider>();
+    final DashboardProvider dashboard = context.read<DashboardProvider>();
+
+    PickedCsvFile? pickedFile;
+
+    try {
+      pickedFile = await pickCsvFile();
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('העלאת CSV נתמכת כרגע בדפדפן בלבד.')),
+      );
+      return;
+    }
+
+    if (pickedFile == null) return;
+
+    final BatchAnalysisResultModel? result = await messages.uploadCsvMessages(
+      childId: childId,
+      filename: pickedFile.filename,
+      fileBytes: pickedFile.bytes,
+    );
+
+    if (result == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            messages.analysisError ?? 'אירעה שגיאה בהעלאת קובץ ה-CSV.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await alerts.refreshUnreadCount();
+    await dashboard.loadStats(force: true);
+    await messages.loadMessages(force: true);
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'הקובץ הועלה בהצלחה — נותחו ${result.totalMessages} הודעות, '
+          'מתוכן ${result.highRiskCount} בסיכון גבוה.',
         ),
       ),
     );
@@ -169,7 +229,7 @@ class _AnalyzeMessageScreenState extends State<AnalyzeMessageScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: messages.isAnalyzing
+                          onChanged: messages.isBusy
                               ? null
                               : (int? value) =>
                                     setState(() => _selectedChildId = value),
@@ -179,7 +239,7 @@ class _AnalyzeMessageScreenState extends State<AnalyzeMessageScreen> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _messageController,
-                          enabled: !messages.isAnalyzing,
+                          enabled: !messages.isBusy,
                           maxLines: 6,
                           minLines: 4,
                           textAlignVertical: TextAlignVertical.top,
@@ -192,7 +252,7 @@ class _AnalyzeMessageScreenState extends State<AnalyzeMessageScreen> {
                         ),
                         const SizedBox(height: 20),
                         FilledButton.icon(
-                          onPressed: messages.isAnalyzing ? null : _submit,
+                          onPressed: messages.isBusy ? null : _submit,
                           icon: messages.isAnalyzing
                               ? const SizedBox(
                                   width: 18,
@@ -206,6 +266,24 @@ class _AnalyzeMessageScreenState extends State<AnalyzeMessageScreen> {
                             messages.isAnalyzing
                                 ? 'מנתח את ההודעה...'
                                 : 'ניתוח ההודעה',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: messages.isBusy ? null : _uploadCsv,
+                          icon: messages.isUploadingCsv
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const Icon(Icons.upload_file_rounded),
+                          label: Text(
+                            messages.isUploadingCsv
+                                ? 'מעלה ומנתח את הקובץ...'
+                                : 'העלאת CSV וניתוח הודעות',
                           ),
                         ),
                       ],
